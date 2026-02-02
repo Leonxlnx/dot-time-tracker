@@ -13,79 +13,86 @@ interface DotGridProps {
 const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'default' }) => {
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
     const fadeAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
     const cells = useMemo(() => generateDotCells(timeData, viewType), [timeData, viewType]);
 
     useEffect(() => {
-        // Fade in grid on view change
         fadeAnim.setValue(0);
-        Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 400,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: true,
-        }).start();
+        scaleAnim.setValue(0.96);
+
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 450,
+                easing: Easing.out(Easing.cubic),
+                useNativeDriver: true,
+            }),
+            Animated.spring(scaleAnim, {
+                toValue: 1,
+                damping: 15,
+                stiffness: 120,
+                useNativeDriver: true,
+            }),
+        ]).start();
     }, [viewType]);
 
-    // Premium responsive calculations
+    // Optimized responsive calculations - use more screen space
     const getResponsiveConfig = () => {
-        const horizontalPadding = theme.spacing.xl * 2;
+        const horizontalPadding = theme.spacing.lg * 2;
         const availableWidth = SCREEN_WIDTH - horizontalPadding;
-        // Use more screen real estate - 55% of height
-        const availableHeight = SCREEN_HEIGHT * 0.55;
+        const availableHeight = SCREEN_HEIGHT * 0.52;
 
         switch (viewType) {
             case 'month': {
                 const cols = 7;
                 const rows = Math.ceil(timeData.totalDays / cols);
-                const gapRatio = 0.18; // Gap as percentage of dot size
+                const gapRatio = 0.22;
 
-                // Calculate optimal dot size
                 const maxByWidth = availableWidth / (cols * (1 + gapRatio));
                 const maxByHeight = availableHeight / (rows * (1 + gapRatio));
-                const dotSize = Math.min(maxByWidth, maxByHeight, 52);
+                const dotSize = Math.min(maxByWidth, maxByHeight, 48);
                 const gap = dotSize * gapRatio;
 
                 return { columns: cols, dotSize, gap };
             }
             case 'year': {
-                const cols = 18;
+                const cols = 20;
+                const rows = Math.ceil(timeData.totalDays / cols);
+                const gapRatio = 0.28;
+
+                const maxByWidth = availableWidth / (cols * (1 + gapRatio));
+                const maxByHeight = availableHeight / (rows * (1 + gapRatio));
+                const dotSize = Math.min(maxByWidth, maxByHeight, 12);
+                const gap = dotSize * gapRatio;
+
+                return { columns: cols, dotSize: Math.max(dotSize, 5), gap };
+            }
+            case 'life': {
+                const cols = 10;
                 const rows = Math.ceil(timeData.totalDays / cols);
                 const gapRatio = 0.25;
 
                 const maxByWidth = availableWidth / (cols * (1 + gapRatio));
                 const maxByHeight = availableHeight / (rows * (1 + gapRatio));
-                const dotSize = Math.min(maxByWidth, maxByHeight, 14);
-                const gap = dotSize * gapRatio;
-
-                return { columns: cols, dotSize: Math.max(dotSize, 6), gap };
-            }
-            case 'life': {
-                const cols = 10;
-                const rows = Math.ceil(timeData.totalDays / cols);
-                const gapRatio = 0.2;
-
-                const maxByWidth = availableWidth / (cols * (1 + gapRatio));
-                const maxByHeight = availableHeight / (rows * (1 + gapRatio));
-                const dotSize = Math.min(maxByWidth, maxByHeight, 36);
+                const dotSize = Math.min(maxByWidth, maxByHeight, 32);
                 const gap = dotSize * gapRatio;
 
                 return { columns: cols, dotSize, gap };
             }
             default:
-                return { columns: 7, dotSize: 20, gap: 4 };
+                return { columns: 7, dotSize: 20, gap: 5 };
         }
     };
 
     const { columns, dotSize, gap } = getResponsiveConfig();
 
-    // Build rows
     const rows: (typeof cells)[] = [];
     for (let i = 0; i < cells.length; i += columns) {
         rows.push(cells.slice(i, i + columns));
     }
 
-    const needsScroll = viewType === 'year' && rows.length > 22;
+    const needsScroll = viewType === 'year' && rows.length > 20;
 
     const gridContent = (
         <View style={styles.grid}>
@@ -106,7 +113,15 @@ const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'de
     );
 
     return (
-        <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+        <Animated.View
+            style={[
+                styles.container,
+                {
+                    opacity: fadeAnim,
+                    transform: [{ scale: scaleAnim }],
+                }
+            ]}
+        >
             {needsScroll ? (
                 <ScrollView
                     showsVerticalScrollIndicator={false}
@@ -131,15 +146,16 @@ const styles = StyleSheet.create({
     },
     centerWrapper: {
         flex: 1,
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         alignItems: 'center',
-        paddingHorizontal: theme.spacing.xl,
+        paddingHorizontal: theme.spacing.lg,
+        paddingTop: theme.spacing.md,
     },
     scrollContent: {
         alignItems: 'center',
-        paddingHorizontal: theme.spacing.xl,
+        paddingHorizontal: theme.spacing.lg,
         paddingTop: theme.spacing.md,
-        paddingBottom: 140,
+        paddingBottom: 120,
     },
     grid: {
         alignItems: 'center',

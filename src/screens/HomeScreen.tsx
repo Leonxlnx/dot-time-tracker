@@ -27,7 +27,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const HomeScreen: React.FC = () => {
     const [viewType, setViewType] = useState<ViewType>('month');
@@ -39,8 +39,8 @@ const HomeScreen: React.FC = () => {
 
     // Animations
     const headerOpacity = useRef(new Animated.Value(0)).current;
-    const headerTranslate = useRef(new Animated.Value(-20)).current;
-    const numberScale = useRef(new Animated.Value(0.8)).current;
+    const headerTranslate = useRef(new Animated.Value(-30)).current;
+    const numberScale = useRef(new Animated.Value(0.7)).current;
 
     useEffect(() => {
         const loadPreferences = async () => {
@@ -59,25 +59,25 @@ const HomeScreen: React.FC = () => {
             } finally {
                 setLoading(false);
 
-                // Entrance animations
+                // Smooth entrance
                 Animated.parallel([
                     Animated.timing(headerOpacity, {
                         toValue: 1,
-                        duration: 600,
+                        duration: 700,
                         easing: Easing.out(Easing.cubic),
                         useNativeDriver: true,
                     }),
                     Animated.timing(headerTranslate, {
                         toValue: 0,
-                        duration: 600,
+                        duration: 700,
                         easing: Easing.out(Easing.cubic),
                         useNativeDriver: true,
                     }),
                     Animated.spring(numberScale, {
                         toValue: 1,
-                        damping: 12,
-                        stiffness: 100,
-                        delay: 100,
+                        damping: 10,
+                        stiffness: 80,
+                        delay: 150,
                         useNativeDriver: true,
                     }),
                 ]).start();
@@ -87,30 +87,22 @@ const HomeScreen: React.FC = () => {
         loadPreferences();
     }, []);
 
-    // Animate number change
+    // Animate number on view change
     useEffect(() => {
-        numberScale.setValue(0.9);
+        numberScale.setValue(0.85);
         Animated.spring(numberScale, {
             toValue: 1,
-            damping: 8,
-            stiffness: 200,
+            damping: 10,
+            stiffness: 180,
             useNativeDriver: true,
         }).start();
     }, [viewType]);
 
     const handleViewChange = useCallback(async (view: ViewType) => {
         LayoutAnimation.configureNext({
-            duration: 300,
+            duration: 350,
             update: { type: 'easeInEaseOut' },
         });
-
-        if (view === 'life') {
-            const savedBirthYear = await getBirthYear();
-            if (!savedBirthYear) {
-                setTempBirthYear('');
-                setShowSettings(true);
-            }
-        }
         setViewType(view);
         await saveViewType(view);
     }, []);
@@ -126,6 +118,7 @@ const HomeScreen: React.FC = () => {
         if (year >= 1900 && year <= new Date().getFullYear()) {
             setBirthYear(year);
             await saveBirthYear(year);
+            setShowSettings(false);
         }
     };
 
@@ -139,7 +132,7 @@ const HomeScreen: React.FC = () => {
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor="#000000" translucent />
 
-            {/* Premium Header */}
+            {/* Ultra-clean Header */}
             <Animated.View
                 style={[
                     styles.header,
@@ -177,8 +170,10 @@ const HomeScreen: React.FC = () => {
                 </TouchableOpacity>
             </Animated.View>
 
-            {/* Dots Grid */}
-            <DotGrid timeData={timeData} viewType={viewType} colorPreset={colorPreset} />
+            {/* Centered Dots Grid */}
+            <View style={styles.gridContainer}>
+                <DotGrid timeData={timeData} viewType={viewType} colorPreset={colorPreset} />
+            </View>
 
             {/* View Selector */}
             <ViewSelector currentView={viewType} onViewChange={handleViewChange} />
@@ -217,7 +212,7 @@ const HomeScreen: React.FC = () => {
                                         keyboardType="numeric"
                                         maxLength={4}
                                         placeholder="1990"
-                                        placeholderTextColor={theme.colors.textTertiary}
+                                        placeholderTextColor="rgba(255,255,255,0.2)"
                                     />
                                     <TouchableOpacity style={styles.saveButton} onPress={handleSaveBirthYear}>
                                         <Text style={styles.saveButtonText}>Save</Text>
@@ -247,31 +242,32 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         paddingHorizontal: theme.spacing.xl,
-        paddingTop: Platform.OS === 'android' ? theme.spacing.xxxl : theme.spacing.xl,
-        paddingBottom: theme.spacing.md,
+        paddingTop: Platform.OS === 'android' ? theme.spacing.xxl + 10 : theme.spacing.lg,
+        paddingBottom: theme.spacing.sm,
     },
     headerContent: {
         flex: 1,
     },
     headerNumber: {
-        fontSize: 88,
+        fontSize: 96,
         fontWeight: '100',
         color: '#FFFFFF',
-        lineHeight: 88,
-        letterSpacing: -6,
+        lineHeight: 96,
+        letterSpacing: -8,
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
     },
     headerLabel: {
-        fontSize: theme.fontSize.md,
-        color: 'rgba(255, 255, 255, 0.4)',
-        marginTop: theme.spacing.xs,
-        letterSpacing: 0.5,
+        fontSize: theme.fontSize.sm,
+        color: 'rgba(255, 255, 255, 0.35)',
+        marginTop: theme.spacing.xxs,
+        letterSpacing: 0.8,
+        textTransform: 'lowercase',
     },
     settingsButton: {
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
         alignItems: 'center',
         justifyContent: 'center',
         marginTop: theme.spacing.md,
@@ -284,28 +280,33 @@ const styles = StyleSheet.create({
         width: 4,
         height: 4,
         borderRadius: 2,
-        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+        backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    },
+    gridContainer: {
+        flex: 1,
+        marginTop: -theme.spacing.md, // Pull grid up
+        marginBottom: 100, // Space for ViewSelector
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
         justifyContent: 'flex-end',
     },
     modalDismiss: {
         flex: 1,
     },
     modalContent: {
-        backgroundColor: '#0A0A0A',
-        borderTopLeftRadius: theme.borderRadius.xl,
-        borderTopRightRadius: theme.borderRadius.xl,
+        backgroundColor: '#0C0C0C',
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
         paddingBottom: theme.spacing.xxxl,
-        maxHeight: '75%',
+        maxHeight: '70%',
     },
     modalHandle: {
-        width: 36,
+        width: 40,
         height: 4,
         borderRadius: 2,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
         alignSelf: 'center',
         marginTop: theme.spacing.md,
         marginBottom: theme.spacing.lg,
@@ -315,26 +316,26 @@ const styles = StyleSheet.create({
         marginBottom: theme.spacing.md,
     },
     modalTitle: {
-        fontSize: theme.fontSize.xl,
+        fontSize: 22,
         color: '#FFFFFF',
-        fontWeight: '600',
+        fontWeight: '500',
         letterSpacing: -0.5,
     },
     settingSection: {
         paddingHorizontal: theme.spacing.xl,
         paddingVertical: theme.spacing.lg,
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+        borderBottomColor: 'rgba(255, 255, 255, 0.04)',
     },
     sectionLabel: {
         fontSize: theme.fontSize.md,
         color: '#FFFFFF',
         fontWeight: '500',
-        marginBottom: theme.spacing.xs,
+        marginBottom: 4,
     },
     sectionDescription: {
         fontSize: theme.fontSize.sm,
-        color: 'rgba(255, 255, 255, 0.4)',
+        color: 'rgba(255, 255, 255, 0.35)',
         marginBottom: theme.spacing.md,
     },
     birthYearRow: {
@@ -344,10 +345,10 @@ const styles = StyleSheet.create({
     },
     birthYearInput: {
         flex: 1,
-        fontSize: theme.fontSize.xxl,
+        fontSize: 40,
         color: '#FFFFFF',
-        backgroundColor: 'rgba(255, 255, 255, 0.06)',
-        borderRadius: theme.borderRadius.lg,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: 16,
         paddingVertical: theme.spacing.md,
         paddingHorizontal: theme.spacing.lg,
         textAlign: 'center',
@@ -355,9 +356,9 @@ const styles = StyleSheet.create({
     },
     saveButton: {
         backgroundColor: '#FFFFFF',
-        paddingVertical: theme.spacing.md,
+        paddingVertical: theme.spacing.md + 4,
         paddingHorizontal: theme.spacing.xl,
-        borderRadius: theme.borderRadius.full,
+        borderRadius: 50,
     },
     saveButtonText: {
         color: '#000000',
