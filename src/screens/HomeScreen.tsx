@@ -15,10 +15,12 @@ import {
     Animated,
     Easing,
     Dimensions,
+    Switch,
 } from 'react-native';
 import { theme, DotColorPreset } from '../theme';
 import { ViewType, getTimeData } from '../utils/timeUtils';
 import { getBirthYear, saveBirthYear, getViewType, saveViewType, getColorPreset, saveColorPreset, getOnboardingComplete, setOnboardingComplete } from '../utils/storage';
+import { getNotificationSettings, saveNotificationSettings, requestNotificationPermissions } from '../utils/notifications';
 import DotGrid from '../components/DotGrid';
 import ViewSelector from '../components/ViewSelector';
 import ColorPicker from '../components/ColorPicker';
@@ -39,6 +41,11 @@ const HomeScreen: React.FC = () => {
     const [showOnboarding, setShowOnboarding] = useState(false);
     const [tempBirthYear, setTempBirthYear] = useState('');
 
+    // Notification settings
+    const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+    const [notificationHour, setNotificationHour] = useState(8);
+    const [notificationMinute, setNotificationMinute] = useState(0);
+
     // Animations
     const headerOpacity = useRef(new Animated.Value(0)).current;
     const numberScale = useRef(new Animated.Value(0.8)).current;
@@ -46,16 +53,21 @@ const HomeScreen: React.FC = () => {
     useEffect(() => {
         const loadPreferences = async () => {
             try {
-                const [savedView, savedBirthYear, savedColor, onboardingDone] = await Promise.all([
+                const [savedView, savedBirthYear, savedColor, onboardingDone, notifSettings] = await Promise.all([
                     getViewType(),
                     getBirthYear(),
                     getColorPreset(),
                     getOnboardingComplete(),
+                    getNotificationSettings(),
                 ]);
 
                 if (savedView) setViewType(savedView as ViewType);
                 if (savedBirthYear) setBirthYear(savedBirthYear);
                 if (savedColor) setColorPreset(savedColor);
+
+                setNotificationsEnabled(notifSettings.enabled);
+                setNotificationHour(notifSettings.hour);
+                setNotificationMinute(notifSettings.minute);
 
                 if (!onboardingDone) {
                     setShowOnboarding(true);
@@ -68,14 +80,14 @@ const HomeScreen: React.FC = () => {
                 Animated.parallel([
                     Animated.timing(headerOpacity, {
                         toValue: 1,
-                        duration: 400,
+                        duration: 350,
                         easing: Easing.out(Easing.cubic),
                         useNativeDriver: true,
                     }),
                     Animated.spring(numberScale, {
                         toValue: 1,
-                        damping: 12,
-                        stiffness: 120,
+                        damping: 14,
+                        stiffness: 130,
                         useNativeDriver: true,
                     }),
                 ]).start();
@@ -86,10 +98,10 @@ const HomeScreen: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        numberScale.setValue(0.9);
+        numberScale.setValue(0.92);
         Animated.spring(numberScale, {
             toValue: 1,
-            damping: 12,
+            damping: 14,
             stiffness: 200,
             useNativeDriver: true,
         }).start();
@@ -101,10 +113,6 @@ const HomeScreen: React.FC = () => {
     };
 
     const handleViewChange = useCallback(async (view: ViewType) => {
-        LayoutAnimation.configureNext({
-            duration: 300,
-            update: { type: 'easeInEaseOut' },
-        });
         setViewType(view);
         await saveViewType(view);
     }, []);
@@ -120,7 +128,35 @@ const HomeScreen: React.FC = () => {
         if (year >= 1900 && year <= new Date().getFullYear()) {
             setBirthYear(year);
             await saveBirthYear(year);
-            setShowSettings(false);
+        }
+    };
+
+    const handleNotificationToggle = async (value: boolean) => {
+        if (value) {
+            const hasPermission = await requestNotificationPermissions();
+            if (!hasPermission) {
+                return;
+            }
+        }
+
+        setNotificationsEnabled(value);
+        await saveNotificationSettings(value, notificationHour, notificationMinute);
+    };
+
+    const formatTime = (hour: number, minute: number): string => {
+        const h = hour.toString().padStart(2, '0');
+        const m = minute.toString().padStart(2, '0');
+        return `${h}:${m}`;
+    };
+
+    const adjustTime = async (delta: number) => {
+        let newHour = notificationHour + delta;
+        if (newHour < 0) newHour = 23;
+        if (newHour > 23) newHour = 0;
+
+        setNotificationHour(newHour);
+        if (notificationsEnabled) {
+            await saveNotificationSettings(true, newHour, notificationMinute);
         }
     };
 
@@ -171,7 +207,7 @@ const HomeScreen: React.FC = () => {
             {/* View Selector */}
             <ViewSelector currentView={viewType} onViewChange={handleViewChange} />
 
-            {/* Settings Modal - Opens higher */}
+            {/* Settings Modal */}
             <Modal
                 visible={showSettings}
                 animationType="slide"
@@ -188,31 +224,71 @@ const HomeScreen: React.FC = () => {
                     <View style={styles.modalContent}>
                         <View style={styles.modalHandle} />
 
-                        {/* Birth Year - Top section, immediately visible */}
-                        <View style={styles.birthYearSection}>
-                            <Text style={styles.birthYearLabel}>Birth Year</Text>
-                            <View style={styles.birthYearRow}>
-                                <TextInput
-                                    style={styles.birthYearInput}
-                                    value={tempBirthYear}
-                                    onChangeText={setTempBirthYear}
-                                    keyboardType="numeric"
-                                    maxLength={4}
-                                    placeholder="1990"
-                                    placeholderTextColor="rgba(255,255,255,0.2)"
-                                    selectTextOnFocus
-                                />
-                                <TouchableOpacity style={styles.saveButton} onPress={handleSaveBirthYear} activeOpacity={0.85}>
-                                    <Text style={styles.saveButtonText}>Save</Text>
-                                </TouchableOpacity>
+                        <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+                            {/* Birth Year */}
+                            <View style={styles.section}>
+                                <Text style={styles.sectionLabel}>Birth Year</Text>
+                                <View style={styles.birthYearRow}>
+                                    <TextInput
+                                        style={styles.birthYearInput}
+                                        value={tempBirthYear}
+                                        onChangeText={setTempBirthYear}
+                                        keyboardType="numeric"
+                                        maxLength={4}
+                                        placeholder="1990"
+                                        placeholderTextColor="rgba(255,255,255,0.2)"
+                                        selectTextOnFocus
+                                        onBlur={handleSaveBirthYear}
+                                    />
+                                </View>
                             </View>
-                        </View>
 
-                        {/* Color Picker */}
-                        <View style={styles.colorSection}>
-                            <Text style={styles.sectionLabel}>Theme</Text>
-                            <ColorPicker currentColor={colorPreset} onColorChange={handleColorChange} />
-                        </View>
+                            {/* Notifications */}
+                            <View style={styles.section}>
+                                <Text style={styles.sectionLabel}>Daily Reminder</Text>
+                                <View style={styles.notificationRow}>
+                                    <View style={styles.notificationLeft}>
+                                        <Text style={styles.notificationTitle}>Motivational Quote</Text>
+                                        <Text style={styles.notificationDesc}>Receive a daily reminder</Text>
+                                    </View>
+                                    <Switch
+                                        value={notificationsEnabled}
+                                        onValueChange={handleNotificationToggle}
+                                        trackColor={{ false: 'rgba(255,255,255,0.1)', true: 'rgba(255,255,255,0.3)' }}
+                                        thumbColor={notificationsEnabled ? '#FFFFFF' : '#666'}
+                                    />
+                                </View>
+
+                                {notificationsEnabled && (
+                                    <View style={styles.timeRow}>
+                                        <Text style={styles.timeLabel}>Time</Text>
+                                        <View style={styles.timeSelector}>
+                                            <TouchableOpacity
+                                                style={styles.timeButton}
+                                                onPress={() => adjustTime(-1)}
+                                                activeOpacity={0.7}
+                                            >
+                                                <Text style={styles.timeButtonText}>−</Text>
+                                            </TouchableOpacity>
+                                            <Text style={styles.timeValue}>{formatTime(notificationHour, notificationMinute)}</Text>
+                                            <TouchableOpacity
+                                                style={styles.timeButton}
+                                                onPress={() => adjustTime(1)}
+                                                activeOpacity={0.7}
+                                            >
+                                                <Text style={styles.timeButtonText}>+</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* Color Theme */}
+                            <View style={styles.section}>
+                                <Text style={styles.sectionLabel}>Theme</Text>
+                                <ColorPicker currentColor={colorPreset} onColorChange={handleColorChange} />
+                            </View>
+                        </ScrollView>
                     </View>
                 </View>
             </Modal>
@@ -230,31 +306,31 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         paddingHorizontal: theme.spacing.xl,
-        paddingTop: Platform.OS === 'android' ? theme.spacing.xxl + 8 : theme.spacing.lg,
+        paddingTop: Platform.OS === 'android' ? theme.spacing.xxl + 10 : theme.spacing.lg,
         paddingBottom: theme.spacing.xs,
     },
     headerContent: {
         flex: 1,
     },
     headerNumber: {
-        fontSize: 80,
+        fontSize: 72,
         fontWeight: '100',
         color: '#FFFFFF',
-        lineHeight: 80,
-        letterSpacing: -5,
+        lineHeight: 72,
+        letterSpacing: -4,
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
     },
     headerLabel: {
-        fontSize: 13,
-        color: 'rgba(255, 255, 255, 0.35)',
-        marginTop: 4,
-        letterSpacing: 0.5,
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.4)',
+        marginTop: 6,
+        letterSpacing: 0.4,
         textTransform: 'lowercase',
     },
     settingsButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 42,
+        height: 42,
+        borderRadius: 21,
         backgroundColor: 'rgba(255, 255, 255, 0.06)',
         alignItems: 'center',
         justifyContent: 'center',
@@ -268,28 +344,29 @@ const styles = StyleSheet.create({
         width: 4,
         height: 4,
         borderRadius: 2,
-        backgroundColor: 'rgba(255, 255, 255, 0.4)',
+        backgroundColor: 'rgba(255, 255, 255, 0.45)',
     },
     gridContainer: {
         flex: 1,
-        marginTop: theme.spacing.lg,
-        marginBottom: 85,
+        marginTop: theme.spacing.md,
+        marginBottom: 90,
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
         justifyContent: 'flex-end',
     },
     modalDismiss: {
         flex: 1,
     },
     modalContent: {
-        backgroundColor: '#0D0D0D',
+        backgroundColor: '#0A0A0A',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
-        paddingBottom: theme.spacing.xxxl + 20,
+        paddingBottom: theme.spacing.xxxl + 24,
+        maxHeight: '70%',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
+        borderColor: 'rgba(255,255,255,0.06)',
         borderBottomWidth: 0,
     },
     modalHandle: {
@@ -299,59 +376,92 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255, 255, 255, 0.12)',
         alignSelf: 'center',
         marginTop: theme.spacing.md,
-        marginBottom: theme.spacing.lg,
+        marginBottom: theme.spacing.xl,
     },
-    birthYearSection: {
+    section: {
         paddingHorizontal: theme.spacing.xl,
         paddingVertical: theme.spacing.lg,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255, 255, 255, 0.04)',
     },
-    birthYearLabel: {
-        fontSize: 13,
-        color: 'rgba(255, 255, 255, 0.4)',
+    sectionLabel: {
+        fontSize: 12,
+        color: 'rgba(255, 255, 255, 0.35)',
         textTransform: 'uppercase',
-        letterSpacing: 1,
+        letterSpacing: 1.2,
         marginBottom: theme.spacing.md,
     },
     birthYearRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: theme.spacing.md,
     },
     birthYearInput: {
         flex: 1,
-        fontSize: 48,
+        fontSize: 40,
         color: '#FFFFFF',
         backgroundColor: 'rgba(255, 255, 255, 0.04)',
-        borderRadius: 16,
-        paddingVertical: theme.spacing.lg,
+        borderRadius: 14,
+        paddingVertical: 16,
         paddingHorizontal: theme.spacing.xl,
         textAlign: 'center',
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
     },
-    saveButton: {
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 22,
-        paddingHorizontal: 32,
-        borderRadius: 50,
+    notificationRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
     },
-    saveButtonText: {
-        color: '#000000',
+    notificationLeft: {
+        flex: 1,
+    },
+    notificationTitle: {
         fontSize: 16,
-        fontWeight: '600',
+        color: '#FFFFFF',
+        fontWeight: '500',
+        marginBottom: 2,
     },
-    colorSection: {
-        paddingHorizontal: theme.spacing.xl,
-        paddingTop: theme.spacing.lg,
-        paddingBottom: theme.spacing.md,
+    notificationDesc: {
+        fontSize: 13,
+        color: 'rgba(255, 255, 255, 0.35)',
+    },
+    timeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: theme.spacing.lg,
+        paddingTop: theme.spacing.md,
         borderTopWidth: 1,
         borderTopColor: 'rgba(255, 255, 255, 0.04)',
     },
-    sectionLabel: {
-        fontSize: 13,
-        color: 'rgba(255, 255, 255, 0.4)',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginBottom: theme.spacing.md,
+    timeLabel: {
+        fontSize: 15,
+        color: 'rgba(255, 255, 255, 0.5)',
+    },
+    timeSelector: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.md,
+    },
+    timeButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    timeButtonText: {
+        fontSize: 20,
+        color: '#FFFFFF',
+        fontWeight: '300',
+    },
+    timeValue: {
+        fontSize: 24,
+        color: '#FFFFFF',
+        fontWeight: '300',
+        fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
+        minWidth: 70,
+        textAlign: 'center',
     },
 });
 
