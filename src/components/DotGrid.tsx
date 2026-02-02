@@ -24,34 +24,34 @@ const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'de
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
-                duration: 450,
+                duration: 400,
                 easing: Easing.out(Easing.cubic),
                 useNativeDriver: true,
             }),
             Animated.spring(scaleAnim, {
                 toValue: 1,
-                damping: 15,
-                stiffness: 120,
+                damping: 16,
+                stiffness: 130,
                 useNativeDriver: true,
             }),
         ]).start();
     }, [viewType]);
 
-    // Optimized responsive calculations - use more screen space
+    // Optimized responsive calculations
     const getResponsiveConfig = () => {
         const horizontalPadding = theme.spacing.lg * 2;
         const availableWidth = SCREEN_WIDTH - horizontalPadding;
-        const availableHeight = SCREEN_HEIGHT * 0.52;
+        const availableHeight = SCREEN_HEIGHT * 0.48; // More vertical space
 
         switch (viewType) {
             case 'month': {
                 const cols = 7;
                 const rows = Math.ceil(timeData.totalDays / cols);
-                const gapRatio = 0.22;
+                const gapRatio = 0.18;
 
                 const maxByWidth = availableWidth / (cols * (1 + gapRatio));
                 const maxByHeight = availableHeight / (rows * (1 + gapRatio));
-                const dotSize = Math.min(maxByWidth, maxByHeight, 48);
+                const dotSize = Math.min(maxByWidth, maxByHeight, 44);
                 const gap = dotSize * gapRatio;
 
                 return { columns: cols, dotSize, gap };
@@ -59,11 +59,11 @@ const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'de
             case 'year': {
                 const cols = 20;
                 const rows = Math.ceil(timeData.totalDays / cols);
-                const gapRatio = 0.28;
+                const gapRatio = 0.25;
 
                 const maxByWidth = availableWidth / (cols * (1 + gapRatio));
                 const maxByHeight = availableHeight / (rows * (1 + gapRatio));
-                const dotSize = Math.min(maxByWidth, maxByHeight, 12);
+                const dotSize = Math.min(maxByWidth, maxByHeight, 11);
                 const gap = dotSize * gapRatio;
 
                 return { columns: cols, dotSize: Math.max(dotSize, 5), gap };
@@ -71,17 +71,17 @@ const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'de
             case 'life': {
                 const cols = 10;
                 const rows = Math.ceil(timeData.totalDays / cols);
-                const gapRatio = 0.25;
+                const gapRatio = 0.22;
 
                 const maxByWidth = availableWidth / (cols * (1 + gapRatio));
                 const maxByHeight = availableHeight / (rows * (1 + gapRatio));
-                const dotSize = Math.min(maxByWidth, maxByHeight, 32);
+                const dotSize = Math.min(maxByWidth, maxByHeight, 30);
                 const gap = dotSize * gapRatio;
 
                 return { columns: cols, dotSize, gap };
             }
             default:
-                return { columns: 7, dotSize: 20, gap: 5 };
+                return { columns: 7, dotSize: 20, gap: 4 };
         }
     };
 
@@ -91,8 +91,6 @@ const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'de
     for (let i = 0; i < cells.length; i += columns) {
         rows.push(cells.slice(i, i + columns));
     }
-
-    const needsScroll = viewType === 'year' && rows.length > 20;
 
     const gridContent = (
         <View style={styles.grid}>
@@ -122,19 +120,9 @@ const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'de
                 }
             ]}
         >
-            {needsScroll ? (
-                <ScrollView
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.scrollContent}
-                    bounces={true}
-                >
-                    {gridContent}
-                </ScrollView>
-            ) : (
-                <View style={styles.centerWrapper}>
-                    {gridContent}
-                </View>
-            )}
+            <View style={styles.centerWrapper}>
+                {gridContent}
+            </View>
         </Animated.View>
     );
 };
@@ -149,13 +137,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
         alignItems: 'center',
         paddingHorizontal: theme.spacing.lg,
-        paddingTop: theme.spacing.md,
-    },
-    scrollContent: {
-        alignItems: 'center',
-        paddingHorizontal: theme.spacing.lg,
-        paddingTop: theme.spacing.md,
-        paddingBottom: 120,
+        paddingTop: theme.spacing.xl, // More space from top
     },
     grid: {
         alignItems: 'center',

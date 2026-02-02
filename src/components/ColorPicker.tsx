@@ -1,95 +1,112 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { theme, DotColorPreset } from '../theme';
 
 interface ColorPickerProps {
     currentColor: DotColorPreset;
-    onColorChange: (color: DotColorPreset) => void;
+    onColorChange: (preset: DotColorPreset) => void;
 }
 
-const colorOptions: { key: DotColorPreset; label: string }[] = [
-    { key: 'default', label: 'Gold' },
-    { key: 'ocean', label: 'Ocean' },
-    { key: 'mint', label: 'Mint' },
-    { key: 'rose', label: 'Rose' },
-    { key: 'purple', label: 'Purple' },
+const colorOptions: { preset: DotColorPreset; name: string; colors: string[] }[] = [
+    { preset: 'default', name: 'Gold', colors: ['#FFE082', '#D4AF37', '#A67C00'] },
+    { preset: 'ocean', name: 'Ocean', colors: ['#80D8FF', '#40C4FF', '#0288D1'] },
+    { preset: 'mint', name: 'Mint', colors: ['#A7FFEB', '#64FFDA', '#00BFA5'] },
+    { preset: 'rose', name: 'Rose', colors: ['#FF8A80', '#FF5252', '#D32F2F'] },
+    { preset: 'purple', name: 'Violet', colors: ['#EA80FC', '#E040FB', '#9C27B0'] },
 ];
 
 const ColorPicker: React.FC<ColorPickerProps> = ({ currentColor, onColorChange }) => {
     return (
         <View style={styles.container}>
-            <Text style={styles.label}>Color Theme</Text>
-            <View style={styles.options}>
-                {colorOptions.map((option) => {
-                    const isActive = currentColor === option.key;
-                    const previewColor = theme.colors.dotPresets[option.key].today;
-
-                    return (
-                        <TouchableOpacity
-                            key={option.key}
-                            style={[
-                                styles.option,
-                                isActive && styles.activeOption,
-                            ]}
-                            onPress={() => onColorChange(option.key)}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.colorDot, { backgroundColor: previewColor }]} />
-                            <Text style={[styles.optionText, isActive && styles.activeText]}>
-                                {option.label}
-                            </Text>
-                        </TouchableOpacity>
-                    );
-                })}
-            </View>
+            {colorOptions.map((option) => {
+                const isSelected = currentColor === option.preset;
+                return (
+                    <TouchableOpacity
+                        key={option.preset}
+                        style={[
+                            styles.colorOption,
+                            isSelected && styles.selectedOption,
+                        ]}
+                        activeOpacity={0.7}
+                        onPress={() => onColorChange(option.preset)}
+                    >
+                        <View style={styles.colorCircleContainer}>
+                            <LinearGradient
+                                colors={option.colors as [string, string, ...string[]]}
+                                start={{ x: 0.3, y: 0 }}
+                                end={{ x: 0.7, y: 1 }}
+                                style={styles.colorCircle}
+                            >
+                                {/* Highlight effect */}
+                                <View style={styles.highlight} />
+                            </LinearGradient>
+                            {isSelected && <View style={styles.glowRing} />}
+                        </View>
+                        <Text style={[styles.colorName, isSelected && styles.selectedName]}>
+                            {option.name}
+                        </Text>
+                    </TouchableOpacity>
+                );
+            })}
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        paddingHorizontal: theme.spacing.lg,
-        paddingVertical: theme.spacing.md,
-    },
-    label: {
-        fontSize: theme.fontSize.sm,
-        color: theme.colors.textTertiary,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginBottom: theme.spacing.md,
-    },
-    options: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: theme.spacing.sm,
+        justifyContent: 'space-between',
+        paddingTop: theme.spacing.sm,
     },
-    option: {
-        flexDirection: 'row',
+    colorOption: {
         alignItems: 'center',
-        paddingVertical: theme.spacing.sm,
-        paddingHorizontal: theme.spacing.md,
-        borderRadius: theme.borderRadius.full,
-        backgroundColor: theme.colors.surfaceGlass,
-        borderWidth: 1,
-        borderColor: 'transparent',
+        paddingVertical: 8,
+        paddingHorizontal: 4,
+        borderRadius: 12,
+        flex: 1,
     },
-    activeOption: {
-        borderColor: theme.colors.text,
-        backgroundColor: theme.colors.surfaceHover,
+    selectedOption: {
+        // Selected styling handled by glow
     },
-    colorDot: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        marginRight: theme.spacing.xs,
+    colorCircleContainer: {
+        position: 'relative',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: theme.spacing.sm,
     },
-    optionText: {
-        fontSize: theme.fontSize.sm,
-        color: theme.colors.textSecondary,
+    colorCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        overflow: 'hidden',
+        position: 'relative',
     },
-    activeText: {
-        color: theme.colors.text,
-        fontWeight: '600',
+    highlight: {
+        position: 'absolute',
+        top: 6,
+        left: 8,
+        width: 14,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: 'rgba(255,255,255,0.45)',
+    },
+    glowRing: {
+        position: 'absolute',
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.25)',
+    },
+    colorName: {
+        fontSize: 11,
+        color: 'rgba(255,255,255,0.4)',
+        fontWeight: '500',
+        letterSpacing: 0.2,
+    },
+    selectedName: {
+        color: 'rgba(255,255,255,0.8)',
     },
 });
 

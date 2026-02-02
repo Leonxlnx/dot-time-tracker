@@ -18,10 +18,11 @@ import {
 } from 'react-native';
 import { theme, DotColorPreset } from '../theme';
 import { ViewType, getTimeData } from '../utils/timeUtils';
-import { getBirthYear, saveBirthYear, getViewType, saveViewType, getColorPreset, saveColorPreset } from '../utils/storage';
+import { getBirthYear, saveBirthYear, getViewType, saveViewType, getColorPreset, saveColorPreset, getOnboardingComplete, setOnboardingComplete } from '../utils/storage';
 import DotGrid from '../components/DotGrid';
 import ViewSelector from '../components/ViewSelector';
 import ColorPicker from '../components/ColorPicker';
+import OnboardingScreen from './OnboardingScreen';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -35,6 +36,7 @@ const HomeScreen: React.FC = () => {
     const [colorPreset, setColorPreset] = useState<DotColorPreset>('default');
     const [loading, setLoading] = useState(true);
     const [showSettings, setShowSettings] = useState(false);
+    const [showOnboarding, setShowOnboarding] = useState(false);
     const [tempBirthYear, setTempBirthYear] = useState('');
 
     // Animations
@@ -45,15 +47,20 @@ const HomeScreen: React.FC = () => {
     useEffect(() => {
         const loadPreferences = async () => {
             try {
-                const [savedView, savedBirthYear, savedColor] = await Promise.all([
+                const [savedView, savedBirthYear, savedColor, onboardingDone] = await Promise.all([
                     getViewType(),
                     getBirthYear(),
                     getColorPreset(),
+                    getOnboardingComplete(),
                 ]);
 
                 if (savedView) setViewType(savedView as ViewType);
                 if (savedBirthYear) setBirthYear(savedBirthYear);
                 if (savedColor) setColorPreset(savedColor);
+
+                if (!onboardingDone) {
+                    setShowOnboarding(true);
+                }
             } catch (error) {
                 console.error('Error loading preferences:', error);
             } finally {
@@ -98,6 +105,11 @@ const HomeScreen: React.FC = () => {
         }).start();
     }, [viewType]);
 
+    const handleOnboardingComplete = async () => {
+        await setOnboardingComplete(true);
+        setShowOnboarding(false);
+    };
+
     const handleViewChange = useCallback(async (view: ViewType) => {
         LayoutAnimation.configureNext({
             duration: 350,
@@ -128,11 +140,15 @@ const HomeScreen: React.FC = () => {
         return <View style={styles.container} />;
     }
 
+    if (showOnboarding) {
+        return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+    }
+
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor="#000000" translucent />
 
-            {/* Ultra-clean Header */}
+            {/* Clean Header */}
             <Animated.View
                 style={[
                     styles.header,
@@ -203,8 +219,8 @@ const HomeScreen: React.FC = () => {
                             {/* Birth Year */}
                             <View style={styles.settingSection}>
                                 <Text style={styles.sectionLabel}>Birth Year</Text>
-                                <Text style={styles.sectionDescription}>Used for life view calculations</Text>
-                                <View style={styles.birthYearRow}>
+                                <Text style={styles.sectionDescription}>Enter your birth year for Life view</Text>
+                                <View style={styles.birthYearContainer}>
                                     <TextInput
                                         style={styles.birthYearInput}
                                         value={tempBirthYear}
@@ -213,8 +229,13 @@ const HomeScreen: React.FC = () => {
                                         maxLength={4}
                                         placeholder="1990"
                                         placeholderTextColor="rgba(255,255,255,0.2)"
+                                        selectTextOnFocus
                                     />
-                                    <TouchableOpacity style={styles.saveButton} onPress={handleSaveBirthYear}>
+                                    <TouchableOpacity
+                                        style={styles.saveButton}
+                                        onPress={handleSaveBirthYear}
+                                        activeOpacity={0.8}
+                                    >
                                         <Text style={styles.saveButtonText}>Save</Text>
                                     </TouchableOpacity>
                                 </View>
@@ -222,6 +243,8 @@ const HomeScreen: React.FC = () => {
 
                             {/* Color Picker */}
                             <View style={styles.settingSection}>
+                                <Text style={styles.sectionLabel}>Color Theme</Text>
+                                <Text style={styles.sectionDescription}>Choose your dot color palette</Text>
                                 <ColorPicker currentColor={colorPreset} onColorChange={handleColorChange} />
                             </View>
                         </ScrollView>
@@ -243,31 +266,31 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
         paddingHorizontal: theme.spacing.xl,
         paddingTop: Platform.OS === 'android' ? theme.spacing.xxl + 10 : theme.spacing.lg,
-        paddingBottom: theme.spacing.sm,
+        paddingBottom: theme.spacing.xs,
     },
     headerContent: {
         flex: 1,
     },
     headerNumber: {
-        fontSize: 96,
+        fontSize: 88,
         fontWeight: '100',
         color: '#FFFFFF',
-        lineHeight: 96,
-        letterSpacing: -8,
+        lineHeight: 88,
+        letterSpacing: -6,
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
     },
     headerLabel: {
         fontSize: theme.fontSize.sm,
         color: 'rgba(255, 255, 255, 0.35)',
-        marginTop: theme.spacing.xxs,
-        letterSpacing: 0.8,
+        marginTop: theme.spacing.xs,
+        letterSpacing: 0.6,
         textTransform: 'lowercase',
     },
     settingsButton: {
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
         alignItems: 'center',
         justifyContent: 'center',
         marginTop: theme.spacing.md,
@@ -284,51 +307,54 @@ const styles = StyleSheet.create({
     },
     gridContainer: {
         flex: 1,
-        marginTop: -theme.spacing.md, // Pull grid up
-        marginBottom: 100, // Space for ViewSelector
+        marginTop: theme.spacing.md,
+        marginBottom: 90,
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
         justifyContent: 'flex-end',
     },
     modalDismiss: {
         flex: 1,
     },
     modalContent: {
-        backgroundColor: '#0C0C0C',
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
-        paddingBottom: theme.spacing.xxxl,
-        maxHeight: '70%',
+        backgroundColor: '#0D0D0D',
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        paddingBottom: theme.spacing.xxxl + 20,
+        maxHeight: '65%',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+        borderBottomWidth: 0,
     },
     modalHandle: {
         width: 40,
         height: 4,
         borderRadius: 2,
-        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        backgroundColor: 'rgba(255, 255, 255, 0.12)',
         alignSelf: 'center',
         marginTop: theme.spacing.md,
-        marginBottom: theme.spacing.lg,
+        marginBottom: theme.spacing.xl,
     },
     modalHeader: {
         paddingHorizontal: theme.spacing.xl,
-        marginBottom: theme.spacing.md,
+        marginBottom: theme.spacing.lg,
     },
     modalTitle: {
-        fontSize: 22,
+        fontSize: 26,
         color: '#FFFFFF',
-        fontWeight: '500',
-        letterSpacing: -0.5,
+        fontWeight: '400',
+        letterSpacing: -0.8,
     },
     settingSection: {
         paddingHorizontal: theme.spacing.xl,
-        paddingVertical: theme.spacing.lg,
+        paddingVertical: theme.spacing.xl,
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(255, 255, 255, 0.04)',
     },
     sectionLabel: {
-        fontSize: theme.fontSize.md,
+        fontSize: theme.fontSize.lg,
         color: '#FFFFFF',
         fontWeight: '500',
         marginBottom: 4,
@@ -336,28 +362,30 @@ const styles = StyleSheet.create({
     sectionDescription: {
         fontSize: theme.fontSize.sm,
         color: 'rgba(255, 255, 255, 0.35)',
-        marginBottom: theme.spacing.md,
+        marginBottom: theme.spacing.lg,
     },
-    birthYearRow: {
+    birthYearContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: theme.spacing.md,
     },
     birthYearInput: {
         flex: 1,
-        fontSize: 40,
+        fontSize: 42,
         color: '#FFFFFF',
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        borderRadius: 16,
-        paddingVertical: theme.spacing.md,
-        paddingHorizontal: theme.spacing.lg,
+        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+        borderRadius: 18,
+        paddingVertical: theme.spacing.lg,
+        paddingHorizontal: theme.spacing.xl,
         textAlign: 'center',
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.06)',
     },
     saveButton: {
         backgroundColor: '#FFFFFF',
-        paddingVertical: theme.spacing.md + 4,
-        paddingHorizontal: theme.spacing.xl,
+        paddingVertical: 20,
+        paddingHorizontal: theme.spacing.xxl,
         borderRadius: 50,
     },
     saveButtonText: {
