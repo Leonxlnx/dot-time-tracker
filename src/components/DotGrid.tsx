@@ -10,76 +10,81 @@ interface DotGridProps {
     colorPreset?: DotColorPreset;
 }
 
-const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'default' }) => {
+const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'gold' }) => {
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const scaleAnim = useRef(new Animated.Value(0.97)).current;
+    const scaleAnim = useRef(new Animated.Value(0.96)).current;
 
     const cells = useMemo(() => generateDotCells(timeData, viewType), [timeData, viewType]);
 
     useEffect(() => {
         fadeAnim.setValue(0);
-        scaleAnim.setValue(0.98);
+        scaleAnim.setValue(0.96);
 
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
-                duration: 250,
+                duration: 200,
                 easing: Easing.out(Easing.cubic),
                 useNativeDriver: true,
             }),
             Animated.spring(scaleAnim, {
                 toValue: 1,
-                damping: 20,
-                stiffness: 180,
+                damping: 22,
+                stiffness: 200,
                 useNativeDriver: true,
             }),
         ]).start();
     }, [viewType]);
 
-    // Premium layout: smaller dots, more spacing
+    // Fully responsive layout - fills available space properly
     const getResponsiveConfig = () => {
-        const horizontalPadding = theme.spacing.xl * 2;
+        const horizontalPadding = theme.spacing.lg * 2;
         const availableWidth = SCREEN_WIDTH - horizontalPadding;
-        const availableHeight = SCREEN_HEIGHT * 0.42;
-        const gapRatio = theme.dots.gapRatio; // 50% gap ratio for premium spacing
+        // More vertical space for dots
+        const availableHeight = SCREEN_HEIGHT * 0.52;
+        const gapRatio = theme.dots.gapRatio;
 
         const total = timeData.totalDays;
 
-        let bestConfig = { columns: 7, dotSize: 10, gap: 5 };
-        let bestDotSize = 0;
+        let bestConfig = { columns: 7, dotSize: 10, gap: 4 };
+        let maxGridArea = 0;
 
-        // Determine column range based on view
-        const minCols = viewType === 'year' ? 18 : viewType === 'life' ? 10 : 7;
-        const maxCols = viewType === 'year' ? 28 : viewType === 'life' ? 14 : 8;
+        // Different column ranges based on view type
+        let minCols: number, maxCols: number;
+        if (viewType === 'month') {
+            minCols = 6;
+            maxCols = 8;
+        } else if (viewType === 'year') {
+            minCols = 14;
+            maxCols = 24;
+        } else {
+            minCols = 8;
+            maxCols = 12;
+        }
 
         for (let cols = minCols; cols <= maxCols; cols++) {
             const rows = Math.ceil(total / cols);
 
-            // Calculate with more generous gap ratio
-            const dotByWidth = availableWidth / (cols + (cols - 1) * gapRatio);
-            const dotByHeight = availableHeight / (rows + (rows - 1) * gapRatio);
-            const dotSize = Math.min(dotByWidth, dotByHeight);
+            // Calculate max dot size that fits
+            const dotByWidth = availableWidth / (cols * (1 + gapRatio));
+            const dotByHeight = availableHeight / (rows * (1 + gapRatio));
+            const dotSize = Math.floor(Math.min(dotByWidth, dotByHeight));
 
-            if (dotSize > bestDotSize) {
-                bestDotSize = dotSize;
-                bestConfig = {
-                    columns: cols,
-                    dotSize,
-                    gap: dotSize * gapRatio
-                };
+            // Calculate total grid area to maximize space usage
+            const gap = dotSize * gapRatio;
+            const gridWidth = cols * (dotSize + gap);
+            const gridHeight = rows * (dotSize + gap);
+            const gridArea = gridWidth * gridHeight;
+
+            // Prefer configuration that uses more space
+            if (gridArea > maxGridArea && dotSize >= 4) {
+                maxGridArea = gridArea;
+                bestConfig = { columns: cols, dotSize, gap };
             }
         }
 
-        // Apply size limits for premium look
-        const maxSize = viewType === 'month' ? 28 : viewType === 'life' ? 20 : 8;
-        const finalDotSize = Math.min(bestConfig.dotSize, maxSize);
-
-        return {
-            columns: bestConfig.columns,
-            dotSize: finalDotSize,
-            gap: finalDotSize * gapRatio
-        };
+        return bestConfig;
     };
 
     const { columns, dotSize, gap } = getResponsiveConfig();
@@ -129,7 +134,7 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: theme.spacing.xl,
+        paddingHorizontal: theme.spacing.lg,
     },
     grid: {
         alignItems: 'center',

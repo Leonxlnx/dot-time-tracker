@@ -10,25 +10,25 @@ interface DotProps {
   colorPreset?: DotColorPreset;
 }
 
-const Dot: React.FC<DotProps> = ({ cell, size, gap, colorPreset = 'default' }) => {
-  const scale = useRef(new Animated.Value(0.6)).current;
+const Dot: React.FC<DotProps> = ({ cell, size, gap, colorPreset = 'gold' }) => {
+  const scale = useRef(new Animated.Value(0.5)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const colors = theme.colors.dotPresets[colorPreset];
 
   useEffect(() => {
-    const delay = Math.min(cell.index * 6, 350);
+    const delay = Math.min(cell.index * 4, 300);
 
     Animated.parallel([
       Animated.spring(scale, {
         toValue: 1,
-        damping: 20,
-        stiffness: 250,
+        damping: 18,
+        stiffness: 280,
         delay,
         useNativeDriver: true,
       }),
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 180,
+        duration: 150,
         delay,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
@@ -39,40 +39,85 @@ const Dot: React.FC<DotProps> = ({ cell, size, gap, colorPreset = 'default' }) =
   const isToday = cell.isToday;
   const isPassed = cell.isPassed;
 
-  // Premium minimal design - clean circles with subtle depth
-  let dotColor: string;
-  let shadowStyle = {};
-
+  // Today dot: same color as passed + ring
   if (isToday) {
-    dotColor = colors.today;
-    // Subtle glow for today
-    shadowStyle = {
-      shadowColor: colors.today,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.4,
-      shadowRadius: size * 0.3,
-      elevation: 3,
-    };
-  } else if (isPassed) {
-    dotColor = colors.passed;
-  } else {
-    dotColor = colors.empty;
+    return (
+      <Animated.View
+        style={[
+          styles.dotWrapper,
+          {
+            width: size,
+            height: size,
+            marginRight: gap,
+            marginBottom: gap,
+            opacity,
+            transform: [{ scale }],
+          },
+        ]}
+      >
+        {/* Outer ring */}
+        <View
+          style={[
+            styles.ring,
+            {
+              width: size,
+              height: size,
+              borderRadius: size / 2,
+              borderColor: colors.accent,
+            }
+          ]}
+        />
+        {/* Inner dot - slightly smaller */}
+        <View
+          style={[
+            styles.innerDot,
+            {
+              width: size * 0.55,
+              height: size * 0.55,
+              borderRadius: size * 0.275,
+              backgroundColor: colors.accent,
+            }
+          ]}
+        />
+      </Animated.View>
+    );
   }
 
+  // Passed dots: solid accent color
+  if (isPassed) {
+    return (
+      <Animated.View
+        style={[
+          styles.solidDot,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: colors.passed,
+            marginRight: gap,
+            marginBottom: gap,
+            opacity,
+            transform: [{ scale }],
+          },
+        ]}
+      />
+    );
+  }
+
+  // Future dots: empty/subtle
   return (
     <Animated.View
       style={[
-        styles.dot,
+        styles.emptyDot,
         {
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: dotColor,
+          backgroundColor: colors.empty,
           marginRight: gap,
           marginBottom: gap,
           opacity,
           transform: [{ scale }],
-          ...shadowStyle,
         },
       ]}
     />
@@ -80,9 +125,19 @@ const Dot: React.FC<DotProps> = ({ cell, size, gap, colorPreset = 'default' }) =
 };
 
 const styles = StyleSheet.create({
-  dot: {
-    // Clean minimal dot
+  dotWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  ring: {
+    position: 'absolute',
+    borderWidth: 1.5,
+  },
+  innerDot: {
+    position: 'absolute',
+  },
+  solidDot: {},
+  emptyDot: {},
 });
 
 export default React.memo(Dot);

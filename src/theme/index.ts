@@ -1,46 +1,54 @@
 export const theme = {
   colors: {
     background: '#000000',
-    surface: '#080808',
-    surfaceElevated: '#0F0F0F',
-    surfaceGlass: 'rgba(255, 255, 255, 0.04)',
-    surfaceHover: 'rgba(255, 255, 255, 0.08)',
+    surface: '#0C0C0C',
+    surfaceElevated: '#141414',
+    surfaceGlass: 'rgba(255, 255, 255, 0.03)',
     text: '#FFFFFF',
-    textSecondary: 'rgba(255, 255, 255, 0.5)',
-    textTertiary: 'rgba(255, 255, 255, 0.25)',
+    textSecondary: 'rgba(255, 255, 255, 0.55)',
+    textTertiary: 'rgba(255, 255, 255, 0.3)',
 
-    // Premium minimalist dot color presets
-    // Passed = subtle gray, Empty = barely visible, Today = accent
+    // Monochrome color system - all dots same color, today has ring
     dotPresets: {
-      default: {
-        passed: 'rgba(255, 255, 255, 0.55)',
-        empty: 'rgba(255, 255, 255, 0.08)',
-        today: '#C9A962', // Muted gold
+      gold: {
+        accent: '#C9A962',
+        passed: '#C9A962',
+        empty: 'rgba(255, 255, 255, 0.06)',
       },
       silver: {
-        passed: 'rgba(255, 255, 255, 0.45)',
+        accent: '#A0A0A0',
+        passed: '#A0A0A0',
         empty: 'rgba(255, 255, 255, 0.06)',
-        today: '#E8E8E8', // Silver white
       },
-      ocean: {
-        passed: 'rgba(255, 255, 255, 0.45)',
+      white: {
+        accent: '#FFFFFF',
+        passed: '#FFFFFF',
         empty: 'rgba(255, 255, 255, 0.06)',
-        today: '#64B5F6', // Soft blue
       },
-      mint: {
-        passed: 'rgba(255, 255, 255, 0.45)',
+      blue: {
+        accent: '#5B9BD5',
+        passed: '#5B9BD5',
         empty: 'rgba(255, 255, 255, 0.06)',
-        today: '#81C784', // Soft green
+      },
+      green: {
+        accent: '#6ABF69',
+        passed: '#6ABF69',
+        empty: 'rgba(255, 255, 255, 0.06)',
       },
       rose: {
-        passed: 'rgba(255, 255, 255, 0.45)',
+        accent: '#D4767C',
+        passed: '#D4767C',
         empty: 'rgba(255, 255, 255, 0.06)',
-        today: '#E57373', // Soft rose
       },
-      purple: {
-        passed: 'rgba(255, 255, 255, 0.45)',
+      lavender: {
+        accent: '#9D8EC9',
+        passed: '#9D8EC9',
         empty: 'rgba(255, 255, 255, 0.06)',
-        today: '#B39DDB', // Soft lavender
+      },
+      coral: {
+        accent: '#E07B53',
+        passed: '#E07B53',
+        empty: 'rgba(255, 255, 255, 0.06)',
       },
     },
 
@@ -57,8 +65,7 @@ export const theme = {
     xxxl: 64,
   },
   dots: {
-    // Smaller dots with more spacing for premium feel
-    gapRatio: 0.5, // Gap = 50% of dot size
+    gapRatio: 0.35, // Gap = 35% of dot size for tighter but clean look
   },
   fontSize: {
     xs: 11,
@@ -67,7 +74,7 @@ export const theme = {
     lg: 18,
     xl: 24,
     xxl: 44,
-    hero: 72,
+    hero: 80,
   },
   borderRadius: {
     sm: 8,
@@ -80,32 +87,32 @@ export const theme = {
     subtle: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
+      shadowOpacity: 0.3,
       shadowRadius: 4,
       elevation: 2,
     },
     soft: {
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.35,
-      shadowRadius: 12,
-      elevation: 6,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.4,
+      shadowRadius: 16,
+      elevation: 8,
     },
     elevated: {
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 16 },
-      shadowOpacity: 0.5,
-      shadowRadius: 24,
-      elevation: 12,
+      shadowOffset: { width: 0, height: 20 },
+      shadowOpacity: 0.6,
+      shadowRadius: 30,
+      elevation: 16,
     },
   },
   animation: {
-    fast: 120,
-    normal: 220,
-    slow: 350,
+    fast: 150,
+    normal: 280,
+    slow: 400,
     spring: {
-      damping: 18,
-      stiffness: 180,
+      damping: 20,
+      stiffness: 200,
     },
   },
 };

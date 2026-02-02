@@ -1,86 +1,181 @@
-import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, Dimensions, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useRef } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    Animated,
+    Easing,
+    Dimensions,
+    Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native';
 import { theme } from '../theme';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface OnboardingScreenProps {
     onComplete: () => void;
 }
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Generate preview dots
+const generatePreviewDots = () => {
+    const dots = [];
+    for (let i = 0; i < 28; i++) {
+        dots.push({
+            index: i,
+            isPassed: i < 2,
+            isToday: i === 2,
+        });
+    }
+    return dots;
+};
+
 const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const dotScale = useRef(new Animated.Value(0.5)).current;
+    const slideAnim = useRef(new Animated.Value(30)).current;
+    const dotsOpacity = useRef(new Animated.Value(0)).current;
+    const dotsScale = useRef(new Animated.Value(0.9)).current;
     const buttonOpacity = useRef(new Animated.Value(0)).current;
+    const buttonSlide = useRef(new Animated.Value(20)).current;
+
+    const previewDots = generatePreviewDots();
 
     useEffect(() => {
-        // Fast, snappy entrance
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 300,
-                easing: Easing.out(Easing.cubic),
-                useNativeDriver: true,
-            }),
-            Animated.spring(dotScale, {
-                toValue: 1,
-                damping: 12,
-                stiffness: 200,
-                useNativeDriver: true,
-            }),
-            Animated.timing(buttonOpacity, {
-                toValue: 1,
-                duration: 400,
-                delay: 200,
-                useNativeDriver: true,
-            }),
+        // Staggered entrance animation
+        Animated.sequence([
+            Animated.parallel([
+                Animated.timing(fadeAnim, {
+                    toValue: 1,
+                    duration: 400,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                }),
+                Animated.spring(slideAnim, {
+                    toValue: 0,
+                    damping: 20,
+                    stiffness: 150,
+                    useNativeDriver: true,
+                }),
+            ]),
+            Animated.parallel([
+                Animated.timing(dotsOpacity, {
+                    toValue: 1,
+                    duration: 350,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                }),
+                Animated.spring(dotsScale, {
+                    toValue: 1,
+                    damping: 18,
+                    stiffness: 180,
+                    useNativeDriver: true,
+                }),
+            ]),
+            Animated.parallel([
+                Animated.timing(buttonOpacity, {
+                    toValue: 1,
+                    duration: 300,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                }),
+                Animated.spring(buttonSlide, {
+                    toValue: 0,
+                    damping: 20,
+                    stiffness: 200,
+                    useNativeDriver: true,
+                }),
+            ]),
         ]).start();
     }, []);
 
+    const handleStart = () => {
+        // Exit animation
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 0,
+                duration: 200,
+                easing: Easing.in(Easing.cubic),
+                useNativeDriver: true,
+            }),
+            Animated.timing(dotsScale, {
+                toValue: 1.05,
+                duration: 200,
+                easing: Easing.in(Easing.cubic),
+                useNativeDriver: true,
+            }),
+        ]).start(() => onComplete());
+    };
+
     return (
-        <View style={styles.container}>
-            <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-                {/* Simple Dot */}
-                <Animated.View style={[styles.heroContainer, { transform: [{ scale: dotScale }] }]}>
-                    <LinearGradient
-                        colors={['#FFE082', '#D4AF37', '#A67C00']}
-                        start={{ x: 0.3, y: 0 }}
-                        end={{ x: 0.7, y: 1 }}
-                        style={styles.heroDot}
-                    >
-                        <View style={styles.dotHighlight} />
-                    </LinearGradient>
+        <SafeAreaView style={styles.container}>
+            <View style={styles.content}>
+                {/* Header */}
+                <Animated.View
+                    style={[
+                        styles.header,
+                        {
+                            opacity: fadeAnim,
+                            transform: [{ translateY: slideAnim }],
+                        }
+                    ]}
+                >
+                    <Text style={styles.title}>DotTime</Text>
+                    <Text style={styles.subtitle}>Visualize your time</Text>
                 </Animated.View>
 
-                {/* Title */}
-                <Text style={styles.title}>DotTime</Text>
-                <Text style={styles.subtitle}>visualize your time</Text>
+                {/* Preview Dots */}
+                <Animated.View
+                    style={[
+                        styles.dotsPreview,
+                        {
+                            opacity: dotsOpacity,
+                            transform: [{ scale: dotsScale }],
+                        }
+                    ]}
+                >
+                    <View style={styles.dotsGrid}>
+                        {previewDots.map((dot, index) => (
+                            <View
+                                key={index}
+                                style={[
+                                    styles.dot,
+                                    dot.isPassed && styles.dotPassed,
+                                    dot.isToday && styles.dotToday,
+                                ]}
+                            >
+                                {dot.isToday && <View style={styles.dotTodayInner} />}
+                            </View>
+                        ))}
+                    </View>
+                    <Text style={styles.dotsCaption}>Each dot is a day</Text>
+                </Animated.View>
 
-                {/* Simple dots grid preview */}
-                <View style={styles.dotsPreview}>
-                    {[...Array(21)].map((_, i) => (
-                        <View
-                            key={i}
-                            style={[
-                                styles.previewDot,
-                                i < 12 && styles.previewDotFilled,
-                                i === 12 && styles.previewDotToday,
-                            ]}
-                        />
-                    ))}
-                </View>
-            </Animated.View>
-
-            {/* Get Started */}
-            <Animated.View style={[styles.buttonContainer, { opacity: buttonOpacity }]}>
-                <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={onComplete}>
-                    <Text style={styles.buttonText}>Get Started</Text>
-                </TouchableOpacity>
-            </Animated.View>
-        </View>
+                {/* Button */}
+                <Animated.View
+                    style={[
+                        styles.buttonContainer,
+                        {
+                            opacity: buttonOpacity,
+                            transform: [{ translateY: buttonSlide }],
+                        }
+                    ]}
+                >
+                    <TouchableOpacity
+                        style={styles.startButton}
+                        activeOpacity={0.8}
+                        onPress={handleStart}
+                    >
+                        <Text style={styles.startButtonText}>Get Started</Text>
+                    </TouchableOpacity>
+                </Animated.View>
+            </View>
+        </SafeAreaView>
     );
 };
+
+const DOT_SIZE = 28;
+const DOT_GAP = 10;
 
 const styles = StyleSheet.create({
     container: {
@@ -89,74 +184,82 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
-        alignItems: 'center',
         justifyContent: 'center',
+        alignItems: 'center',
         paddingHorizontal: theme.spacing.xl,
     },
-    heroContainer: {
-        marginBottom: theme.spacing.xxl,
-    },
-    heroDot: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        overflow: 'hidden',
-    },
-    dotHighlight: {
-        position: 'absolute',
-        top: 10,
-        left: 14,
-        width: 18,
-        height: 10,
-        borderRadius: 5,
-        backgroundColor: 'rgba(255,255,255,0.5)',
+    header: {
+        alignItems: 'center',
+        marginBottom: theme.spacing.xxxl,
     },
     title: {
-        fontSize: 42,
+        fontSize: 44,
         fontWeight: '200',
         color: '#FFFFFF',
-        letterSpacing: -1.5,
-        marginBottom: 4,
+        letterSpacing: -1,
+        fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
     },
     subtitle: {
-        fontSize: 15,
-        color: 'rgba(255,255,255,0.35)',
+        fontSize: 16,
+        color: 'rgba(255, 255, 255, 0.4)',
+        marginTop: 8,
         letterSpacing: 0.3,
-        marginBottom: theme.spacing.xxl,
     },
     dotsPreview: {
+        alignItems: 'center',
+        marginBottom: theme.spacing.xxxl,
+    },
+    dotsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        width: 140,
+        width: (DOT_SIZE + DOT_GAP) * 7,
+        justifyContent: 'flex-start',
+    },
+    dot: {
+        width: DOT_SIZE,
+        height: DOT_SIZE,
+        borderRadius: DOT_SIZE / 2,
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+        marginRight: DOT_GAP,
+        marginBottom: DOT_GAP,
+        alignItems: 'center',
         justifyContent: 'center',
-        gap: 6,
     },
-    previewDot: {
-        width: 14,
-        height: 14,
-        borderRadius: 7,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+    dotPassed: {
+        backgroundColor: '#C9A962',
     },
-    previewDotFilled: {
-        backgroundColor: 'rgba(255,255,255,0.5)',
+    dotToday: {
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderColor: '#C9A962',
     },
-    previewDotToday: {
-        backgroundColor: '#D4AF37',
+    dotTodayInner: {
+        width: DOT_SIZE * 0.5,
+        height: DOT_SIZE * 0.5,
+        borderRadius: DOT_SIZE * 0.25,
+        backgroundColor: '#C9A962',
+    },
+    dotsCaption: {
+        fontSize: 13,
+        color: 'rgba(255, 255, 255, 0.35)',
+        marginTop: theme.spacing.lg,
+        letterSpacing: 0.2,
     },
     buttonContainer: {
-        paddingHorizontal: theme.spacing.xl,
-        paddingBottom: theme.spacing.xxxl,
+        width: '100%',
+        paddingHorizontal: theme.spacing.lg,
     },
-    button: {
+    startButton: {
         backgroundColor: '#FFFFFF',
-        paddingVertical: 16,
-        borderRadius: 50,
+        borderRadius: 16,
+        paddingVertical: 18,
         alignItems: 'center',
     },
-    buttonText: {
-        color: '#000000',
+    startButtonText: {
         fontSize: 16,
         fontWeight: '600',
+        color: '#000000',
+        letterSpacing: 0.2,
     },
 });
 

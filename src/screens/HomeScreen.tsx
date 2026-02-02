@@ -30,12 +30,12 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const HomeScreen: React.FC = () => {
     const [viewType, setViewType] = useState<ViewType>('month');
     const [birthYear, setBirthYear] = useState<number>(1990);
-    const [colorPreset, setColorPreset] = useState<DotColorPreset>('default');
+    const [colorPreset, setColorPreset] = useState<DotColorPreset>('gold');
     const [loading, setLoading] = useState(true);
     const [showSettings, setShowSettings] = useState(false);
     const [showOnboarding, setShowOnboarding] = useState(false);
@@ -48,7 +48,9 @@ const HomeScreen: React.FC = () => {
 
     // Animations
     const headerOpacity = useRef(new Animated.Value(0)).current;
-    const numberScale = useRef(new Animated.Value(0.8)).current;
+    const numberScale = useRef(new Animated.Value(0.85)).current;
+    const numberTranslate = useRef(new Animated.Value(-10)).current;
+    const settingsRotate = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         const loadPreferences = async () => {
@@ -63,7 +65,7 @@ const HomeScreen: React.FC = () => {
 
                 if (savedView) setViewType(savedView as ViewType);
                 if (savedBirthYear) setBirthYear(savedBirthYear);
-                if (savedColor) setColorPreset(savedColor);
+                if (savedColor) setColorPreset(savedColor as DotColorPreset);
 
                 setNotificationsEnabled(notifSettings.enabled);
                 setNotificationHour(notifSettings.hour);
@@ -77,17 +79,24 @@ const HomeScreen: React.FC = () => {
             } finally {
                 setLoading(false);
 
+                // Smooth entrance animation
                 Animated.parallel([
                     Animated.timing(headerOpacity, {
                         toValue: 1,
-                        duration: 350,
+                        duration: 400,
                         easing: Easing.out(Easing.cubic),
                         useNativeDriver: true,
                     }),
                     Animated.spring(numberScale, {
                         toValue: 1,
-                        damping: 14,
-                        stiffness: 130,
+                        damping: 16,
+                        stiffness: 150,
+                        useNativeDriver: true,
+                    }),
+                    Animated.spring(numberTranslate, {
+                        toValue: 0,
+                        damping: 16,
+                        stiffness: 150,
                         useNativeDriver: true,
                     }),
                 ]).start();
@@ -97,14 +106,25 @@ const HomeScreen: React.FC = () => {
         loadPreferences();
     }, []);
 
+    // Smooth number transition on view change
     useEffect(() => {
         numberScale.setValue(0.92);
-        Animated.spring(numberScale, {
-            toValue: 1,
-            damping: 14,
-            stiffness: 200,
-            useNativeDriver: true,
-        }).start();
+        numberTranslate.setValue(-8);
+
+        Animated.parallel([
+            Animated.spring(numberScale, {
+                toValue: 1,
+                damping: 18,
+                stiffness: 220,
+                useNativeDriver: true,
+            }),
+            Animated.spring(numberTranslate, {
+                toValue: 0,
+                damping: 18,
+                stiffness: 220,
+                useNativeDriver: true,
+            }),
+        ]).start();
     }, [viewType]);
 
     const handleOnboardingComplete = async () => {
@@ -134,9 +154,7 @@ const HomeScreen: React.FC = () => {
     const handleNotificationToggle = async (value: boolean) => {
         if (value) {
             const hasPermission = await requestNotificationPermissions();
-            if (!hasPermission) {
-                return;
-            }
+            if (!hasPermission) return;
         }
 
         setNotificationsEnabled(value);
@@ -160,7 +178,31 @@ const HomeScreen: React.FC = () => {
         }
     };
 
+    const handleSettingsPress = () => {
+        // Rotate animation on press
+        Animated.sequence([
+            Animated.timing(settingsRotate, {
+                toValue: 1,
+                duration: 200,
+                easing: Easing.out(Easing.cubic),
+                useNativeDriver: true,
+            }),
+            Animated.timing(settingsRotate, {
+                toValue: 0,
+                duration: 0,
+                useNativeDriver: true,
+            }),
+        ]).start();
+
+        setTempBirthYear(birthYear.toString());
+        setShowSettings(true);
+    };
+
     const timeData = getTimeData(viewType, birthYear);
+    const settingsRotation = settingsRotate.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '90deg'],
+    });
 
     if (loading) {
         return <View style={styles.container} />;
@@ -177,25 +219,36 @@ const HomeScreen: React.FC = () => {
             {/* Header */}
             <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
                 <View style={styles.headerContent}>
-                    <Animated.Text style={[styles.headerNumber, { transform: [{ scale: numberScale }] }]}>
+                    <Animated.Text
+                        style={[
+                            styles.headerNumber,
+                            {
+                                transform: [
+                                    { scale: numberScale },
+                                    { translateY: numberTranslate },
+                                ]
+                            }
+                        ]}
+                    >
                         {timeData.remainingDays}
                     </Animated.Text>
                     <Text style={styles.headerLabel}>{timeData.label}</Text>
                 </View>
 
+                {/* Premium Settings Button */}
                 <TouchableOpacity
                     activeOpacity={0.7}
                     style={styles.settingsButton}
-                    onPress={() => {
-                        setTempBirthYear(birthYear.toString());
-                        setShowSettings(true);
-                    }}
+                    onPress={handleSettingsPress}
                 >
-                    <View style={styles.settingsIcon}>
-                        <View style={styles.settingsDot} />
-                        <View style={styles.settingsDot} />
-                        <View style={styles.settingsDot} />
-                    </View>
+                    <Animated.View style={[styles.settingsIconContainer, { transform: [{ rotate: settingsRotation }] }]}>
+                        <View style={styles.settingsGrid}>
+                            <View style={styles.settingsGridItem} />
+                            <View style={styles.settingsGridItem} />
+                            <View style={styles.settingsGridItem} />
+                            <View style={styles.settingsGridItem} />
+                        </View>
+                    </Animated.View>
                 </TouchableOpacity>
             </Animated.View>
 
@@ -236,7 +289,7 @@ const HomeScreen: React.FC = () => {
                                         keyboardType="numeric"
                                         maxLength={4}
                                         placeholder="1990"
-                                        placeholderTextColor="rgba(255,255,255,0.2)"
+                                        placeholderTextColor="rgba(255,255,255,0.15)"
                                         selectTextOnFocus
                                         onBlur={handleSaveBirthYear}
                                     />
@@ -254,7 +307,7 @@ const HomeScreen: React.FC = () => {
                                     <Switch
                                         value={notificationsEnabled}
                                         onValueChange={handleNotificationToggle}
-                                        trackColor={{ false: 'rgba(255,255,255,0.1)', true: 'rgba(255,255,255,0.3)' }}
+                                        trackColor={{ false: 'rgba(255,255,255,0.08)', true: 'rgba(255,255,255,0.25)' }}
                                         thumbColor={notificationsEnabled ? '#FFFFFF' : '#666'}
                                     />
                                 </View>
@@ -266,7 +319,7 @@ const HomeScreen: React.FC = () => {
                                             <TouchableOpacity
                                                 style={styles.timeButton}
                                                 onPress={() => adjustTime(-1)}
-                                                activeOpacity={0.7}
+                                                activeOpacity={0.6}
                                             >
                                                 <Text style={styles.timeButtonText}>−</Text>
                                             </TouchableOpacity>
@@ -274,7 +327,7 @@ const HomeScreen: React.FC = () => {
                                             <TouchableOpacity
                                                 style={styles.timeButton}
                                                 onPress={() => adjustTime(1)}
-                                                activeOpacity={0.7}
+                                                activeOpacity={0.6}
                                             >
                                                 <Text style={styles.timeButtonText}>+</Text>
                                             </TouchableOpacity>
@@ -306,54 +359,62 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         paddingHorizontal: theme.spacing.xl,
-        paddingTop: Platform.OS === 'android' ? theme.spacing.xxl + 10 : theme.spacing.lg,
-        paddingBottom: theme.spacing.xs,
+        paddingTop: Platform.OS === 'android' ? theme.spacing.xxl + 12 : theme.spacing.lg,
+        paddingBottom: theme.spacing.sm,
     },
     headerContent: {
         flex: 1,
     },
     headerNumber: {
-        fontSize: 72,
+        fontSize: 80,
         fontWeight: '100',
         color: '#FFFFFF',
-        lineHeight: 72,
-        letterSpacing: -4,
+        lineHeight: 80,
+        letterSpacing: -3,
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
     },
     headerLabel: {
         fontSize: 14,
-        color: 'rgba(255, 255, 255, 0.4)',
-        marginTop: 6,
-        letterSpacing: 0.4,
+        color: 'rgba(255, 255, 255, 0.45)',
+        marginTop: 4,
+        letterSpacing: 0.3,
         textTransform: 'lowercase',
     },
     settingsButton: {
-        width: 42,
-        height: 42,
-        borderRadius: 21,
-        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
         alignItems: 'center',
         justifyContent: 'center',
         marginTop: theme.spacing.sm,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.06)',
     },
-    settingsIcon: {
-        flexDirection: 'column',
+    settingsIconContainer: {
+        width: 20,
+        height: 20,
+    },
+    settingsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        width: 18,
+        height: 18,
         gap: 4,
     },
-    settingsDot: {
-        width: 4,
-        height: 4,
+    settingsGridItem: {
+        width: 7,
+        height: 7,
         borderRadius: 2,
-        backgroundColor: 'rgba(255, 255, 255, 0.45)',
+        backgroundColor: 'rgba(255, 255, 255, 0.5)',
     },
     gridContainer: {
         flex: 1,
-        marginTop: theme.spacing.md,
-        marginBottom: 90,
+        marginBottom: 85,
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
         justifyContent: 'flex-end',
     },
     modalDismiss: {
@@ -363,17 +424,17 @@ const styles = StyleSheet.create({
         backgroundColor: '#0A0A0A',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
-        paddingBottom: theme.spacing.xxxl + 24,
-        maxHeight: '70%',
+        paddingBottom: theme.spacing.xxxl + 20,
+        maxHeight: '72%',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.06)',
+        borderColor: 'rgba(255,255,255,0.05)',
         borderBottomWidth: 0,
     },
     modalHandle: {
-        width: 36,
+        width: 40,
         height: 4,
         borderRadius: 2,
-        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
         alignSelf: 'center',
         marginTop: theme.spacing.md,
         marginBottom: theme.spacing.xl,
@@ -385,11 +446,12 @@ const styles = StyleSheet.create({
         borderBottomColor: 'rgba(255, 255, 255, 0.04)',
     },
     sectionLabel: {
-        fontSize: 12,
-        color: 'rgba(255, 255, 255, 0.35)',
+        fontSize: 11,
+        color: 'rgba(255, 255, 255, 0.3)',
         textTransform: 'uppercase',
-        letterSpacing: 1.2,
+        letterSpacing: 1.5,
         marginBottom: theme.spacing.md,
+        fontWeight: '600',
     },
     birthYearRow: {
         flexDirection: 'row',
@@ -397,14 +459,15 @@ const styles = StyleSheet.create({
     },
     birthYearInput: {
         flex: 1,
-        fontSize: 40,
+        fontSize: 36,
         color: '#FFFFFF',
         backgroundColor: 'rgba(255, 255, 255, 0.04)',
-        borderRadius: 14,
-        paddingVertical: 16,
+        borderRadius: 16,
+        paddingVertical: 18,
         paddingHorizontal: theme.spacing.xl,
         textAlign: 'center',
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
+        fontWeight: '200',
     },
     notificationRow: {
         flexDirection: 'row',
@@ -435,32 +498,33 @@ const styles = StyleSheet.create({
     },
     timeLabel: {
         fontSize: 15,
-        color: 'rgba(255, 255, 255, 0.5)',
+        color: 'rgba(255, 255, 255, 0.45)',
     },
     timeSelector: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: theme.spacing.md,
+        gap: 12,
     },
     timeButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
         alignItems: 'center',
         justifyContent: 'center',
     },
     timeButtonText: {
-        fontSize: 20,
+        fontSize: 22,
         color: '#FFFFFF',
         fontWeight: '300',
+        lineHeight: 22,
     },
     timeValue: {
-        fontSize: 24,
+        fontSize: 22,
         color: '#FFFFFF',
         fontWeight: '300',
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
-        minWidth: 70,
+        minWidth: 65,
         textAlign: 'center',
     },
 });
