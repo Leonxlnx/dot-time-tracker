@@ -8,12 +8,43 @@ interface FontPickerProps {
     onFontChange: (font: FontPreset) => void;
 }
 
-const fonts: { preset: FontPreset; name: string; preview: string; fontFamily: string }[] = [
-    { preset: 'system', name: 'System', preview: 'Aa', fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
-    { preset: 'inter', name: 'Inter', preview: 'Aa', fontFamily: 'Inter' },
-    { preset: 'roboto', name: 'Roboto', preview: 'Aa', fontFamily: 'Roboto' },
-    { preset: 'outfit', name: 'Outfit', preview: 'Aa', fontFamily: 'Outfit' },
-    { preset: 'space', name: 'Space', preview: 'Aa', fontFamily: 'SpaceGrotesk' },
+// 5 completely distinct fonts with very different styles
+const fonts: { preset: FontPreset; name: string; preview: string; fontFamily: string; style: 'serif' | 'sans' | 'mono' | 'display' | 'handwriting' }[] = [
+    {
+        preset: 'system',
+        name: 'System',
+        preview: 'Aa',
+        fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+        style: 'sans'
+    },
+    {
+        preset: 'inter',
+        name: 'Serif',
+        preview: 'Aa',
+        fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+        style: 'serif'
+    },
+    {
+        preset: 'roboto',
+        name: 'Mono',
+        preview: 'Aa',
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+        style: 'mono'
+    },
+    {
+        preset: 'outfit',
+        name: 'Round',
+        preview: 'Aa',
+        fontFamily: Platform.OS === 'ios' ? 'Avenir-Light' : 'sans-serif-light',
+        style: 'display'
+    },
+    {
+        preset: 'space',
+        name: 'Thin',
+        preview: 'Aa',
+        fontFamily: Platform.OS === 'ios' ? 'HelveticaNeue-UltraLight' : 'sans-serif-thin',
+        style: 'display'
+    },
 ];
 
 export const getFontFamily = (preset: FontPreset): string => {
@@ -34,7 +65,12 @@ const FontPicker: React.FC<FontPickerProps> = ({ currentFont, onFontChange }) =>
                         onPress={() => onFontChange(font.preset)}
                     >
                         <View style={[styles.preview, isSelected && styles.selectedPreview]}>
-                            <Text style={[styles.previewText, { fontFamily: font.fontFamily }]}>
+                            <Text style={[
+                                styles.previewText,
+                                { fontFamily: font.fontFamily },
+                                font.style === 'mono' && styles.monoText,
+                                font.style === 'serif' && styles.serifText,
+                            ]}>
                                 {font.preview}
                             </Text>
                         </View>
@@ -77,6 +113,13 @@ const styles = StyleSheet.create({
         fontSize: 18,
         color: '#FFFFFF',
         fontWeight: '400',
+    },
+    monoText: {
+        fontSize: 16,
+        letterSpacing: -1,
+    },
+    serifText: {
+        fontStyle: 'italic',
     },
     fontName: {
         fontSize: 10,

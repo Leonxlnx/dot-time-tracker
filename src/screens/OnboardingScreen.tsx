@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import {
     View,
     Text,
@@ -9,7 +9,7 @@ import {
     Dimensions,
     Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../theme';
 
 interface OnboardingScreenProps {
@@ -17,72 +17,107 @@ interface OnboardingScreenProps {
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const DOT_COUNT = 35;
 
-// Generate preview dots
-const generatePreviewDots = () => {
-    const dots = [];
-    for (let i = 0; i < 28; i++) {
-        dots.push({
-            index: i,
-            isPassed: i < 2,
-            isToday: i === 2,
-        });
-    }
-    return dots;
-};
+interface DotData {
+    x: number;
+    y: number;
+    size: number;
+    opacity: number;
+    delay: number;
+}
 
 const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(30)).current;
-    const dotsOpacity = useRef(new Animated.Value(0)).current;
-    const dotsScale = useRef(new Animated.Value(0.9)).current;
+    const titleTranslate = useRef(new Animated.Value(40)).current;
+    const subtitleTranslate = useRef(new Animated.Value(40)).current;
+    const buttonScale = useRef(new Animated.Value(0)).current;
     const buttonOpacity = useRef(new Animated.Value(0)).current;
-    const buttonSlide = useRef(new Animated.Value(20)).current;
+    const dotsOpacity = useRef(new Animated.Value(0)).current;
+    const glowScale = useRef(new Animated.Value(0.8)).current;
+    const glowOpacity = useRef(new Animated.Value(0)).current;
 
-    const previewDots = generatePreviewDots();
+    // Generate random dot positions
+    const dots = useMemo<DotData[]>(() => {
+        const items: DotData[] = [];
+        for (let i = 0; i < DOT_COUNT; i++) {
+            items.push({
+                x: Math.random() * SCREEN_WIDTH * 0.8 + SCREEN_WIDTH * 0.1,
+                y: Math.random() * SCREEN_HEIGHT * 0.4 + SCREEN_HEIGHT * 0.15,
+                size: 4 + Math.random() * 6,
+                opacity: 0.15 + Math.random() * 0.4,
+                delay: Math.random() * 200,
+            });
+        }
+        return items;
+    }, []);
 
     useEffect(() => {
-        // Staggered entrance animation
-        Animated.sequence([
+        // Premium staggered entrance
+        Animated.parallel([
+            // Fade in background
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 600,
+                easing: Easing.out(Easing.cubic),
+                useNativeDriver: true,
+            }),
+            // Dots all at once
+            Animated.timing(dotsOpacity, {
+                toValue: 1,
+                duration: 800,
+                delay: 200,
+                easing: Easing.out(Easing.cubic),
+                useNativeDriver: true,
+            }),
+            // Center glow
             Animated.parallel([
-                Animated.timing(fadeAnim, {
+                Animated.timing(glowOpacity, {
                     toValue: 1,
-                    duration: 400,
+                    duration: 1000,
+                    delay: 100,
                     easing: Easing.out(Easing.cubic),
                     useNativeDriver: true,
                 }),
-                Animated.spring(slideAnim, {
+                Animated.spring(glowScale, {
+                    toValue: 1,
+                    damping: 15,
+                    stiffness: 80,
+                    delay: 100,
+                    useNativeDriver: true,
+                }),
+            ]),
+            // Title
+            Animated.parallel([
+                Animated.timing(titleTranslate, {
                     toValue: 0,
-                    damping: 20,
-                    stiffness: 150,
-                    useNativeDriver: true,
-                }),
-            ]),
-            Animated.parallel([
-                Animated.timing(dotsOpacity, {
-                    toValue: 1,
-                    duration: 350,
+                    duration: 700,
+                    delay: 400,
                     easing: Easing.out(Easing.cubic),
                     useNativeDriver: true,
                 }),
-                Animated.spring(dotsScale, {
+            ]),
+            // Subtitle
+            Animated.timing(subtitleTranslate, {
+                toValue: 0,
+                duration: 700,
+                delay: 550,
+                easing: Easing.out(Easing.cubic),
+                useNativeDriver: true,
+            }),
+            // Button
+            Animated.parallel([
+                Animated.spring(buttonScale, {
                     toValue: 1,
-                    damping: 18,
-                    stiffness: 180,
+                    damping: 14,
+                    stiffness: 160,
+                    delay: 700,
                     useNativeDriver: true,
                 }),
-            ]),
-            Animated.parallel([
                 Animated.timing(buttonOpacity, {
                     toValue: 1,
-                    duration: 300,
-                    easing: Easing.out(Easing.cubic),
-                    useNativeDriver: true,
-                }),
-                Animated.spring(buttonSlide, {
-                    toValue: 0,
-                    damping: 20,
-                    stiffness: 200,
+                    duration: 400,
+                    delay: 700,
                     useNativeDriver: true,
                 }),
             ]),
@@ -94,172 +129,166 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 0,
-                duration: 200,
+                duration: 300,
                 easing: Easing.in(Easing.cubic),
                 useNativeDriver: true,
             }),
-            Animated.timing(dotsScale, {
-                toValue: 1.05,
-                duration: 200,
-                easing: Easing.in(Easing.cubic),
-                useNativeDriver: true,
-            }),
-        ]).start(() => onComplete());
+        ]).start(() => {
+            onComplete();
+        });
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+            {/* Premium gradient background */}
+            <LinearGradient
+                colors={['#0a0a0f', '#0f1015', '#0a0a0f']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+            />
+
+            {/* Subtle center glow */}
+            <Animated.View
+                style={[
+                    styles.glow,
+                    {
+                        opacity: glowOpacity,
+                        transform: [{ scale: glowScale }],
+                    }
+                ]}
+            />
+
+            {/* White dots - all at once */}
+            <Animated.View style={[styles.dotsContainer, { opacity: dotsOpacity }]}>
+                {dots.map((dot, index) => (
+                    <View
+                        key={index}
+                        style={[
+                            styles.dot,
+                            {
+                                left: dot.x,
+                                top: dot.y,
+                                width: dot.size,
+                                height: dot.size,
+                                opacity: dot.opacity,
+                            },
+                        ]}
+                    />
+                ))}
+            </Animated.View>
+
+            {/* Content */}
             <View style={styles.content}>
-                {/* Header */}
-                <Animated.View
-                    style={[
-                        styles.header,
-                        {
-                            opacity: fadeAnim,
-                            transform: [{ translateY: slideAnim }],
-                        }
-                    ]}
-                >
-                    <Text style={styles.title}>DotTime</Text>
-                    <Text style={styles.subtitle}>Visualize your time</Text>
-                </Animated.View>
+                <View style={styles.textContainer}>
+                    <Animated.Text
+                        style={[
+                            styles.title,
+                            { transform: [{ translateY: titleTranslate }] }
+                        ]}
+                    >
+                        DotTime
+                    </Animated.Text>
 
-                {/* Preview Dots */}
-                <Animated.View
-                    style={[
-                        styles.dotsPreview,
-                        {
-                            opacity: dotsOpacity,
-                            transform: [{ scale: dotsScale }],
-                        }
-                    ]}
-                >
-                    <View style={styles.dotsGrid}>
-                        {previewDots.map((dot, index) => (
-                            <View
-                                key={index}
-                                style={[
-                                    styles.dot,
-                                    dot.isPassed && styles.dotPassed,
-                                    dot.isToday && styles.dotToday,
-                                ]}
-                            >
-                                {dot.isToday && <View style={styles.dotTodayInner} />}
-                            </View>
-                        ))}
-                    </View>
-                    <Text style={styles.dotsCaption}>Each dot is a day</Text>
-                </Animated.View>
+                    <Animated.Text
+                        style={[
+                            styles.subtitle,
+                            { transform: [{ translateY: subtitleTranslate }] }
+                        ]}
+                    >
+                        Visualize your time.{'\n'}Make every day count.
+                    </Animated.Text>
+                </View>
 
-                {/* Button */}
                 <Animated.View
                     style={[
                         styles.buttonContainer,
                         {
                             opacity: buttonOpacity,
-                            transform: [{ translateY: buttonSlide }],
+                            transform: [{ scale: buttonScale }],
                         }
                     ]}
                 >
                     <TouchableOpacity
-                        style={styles.startButton}
+                        style={styles.button}
                         activeOpacity={0.8}
                         onPress={handleStart}
                     >
-                        <Text style={styles.startButtonText}>Get Started</Text>
+                        <Text style={styles.buttonText}>Get Started</Text>
                     </TouchableOpacity>
                 </Animated.View>
             </View>
-        </SafeAreaView>
+        </Animated.View>
     );
 };
-
-const DOT_SIZE = 28;
-const DOT_GAP = 10;
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000000',
+        backgroundColor: '#000',
+    },
+    glow: {
+        position: 'absolute',
+        top: SCREEN_HEIGHT * 0.15,
+        left: SCREEN_WIDTH * 0.5 - SCREEN_WIDTH * 0.4,
+        width: SCREEN_WIDTH * 0.8,
+        height: SCREEN_WIDTH * 0.8,
+        borderRadius: SCREEN_WIDTH * 0.4,
+        backgroundColor: 'rgba(255, 255, 255, 0.015)',
+    },
+    dotsContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+    },
+    dot: {
+        position: 'absolute',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 50,
     },
     content: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingTop: SCREEN_HEIGHT * 0.55,
+        paddingBottom: Platform.OS === 'ios' ? 60 : 40,
         paddingHorizontal: theme.spacing.xl,
     },
-    header: {
+    textContainer: {
         alignItems: 'center',
-        marginBottom: theme.spacing.xxxl,
     },
     title: {
-        fontSize: 44,
+        fontSize: 42,
         fontWeight: '200',
         color: '#FFFFFF',
-        letterSpacing: -1,
-        fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
+        letterSpacing: 2,
+        marginBottom: 16,
     },
     subtitle: {
-        fontSize: 16,
-        color: 'rgba(255, 255, 255, 0.4)',
-        marginTop: 8,
-        letterSpacing: 0.3,
-    },
-    dotsPreview: {
-        alignItems: 'center',
-        marginBottom: theme.spacing.xxxl,
-    },
-    dotsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        width: (DOT_SIZE + DOT_GAP) * 7,
-        justifyContent: 'flex-start',
-    },
-    dot: {
-        width: DOT_SIZE,
-        height: DOT_SIZE,
-        borderRadius: DOT_SIZE / 2,
-        backgroundColor: 'rgba(255, 255, 255, 0.06)',
-        marginRight: DOT_GAP,
-        marginBottom: DOT_GAP,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    dotPassed: {
-        backgroundColor: '#C9A962',
-    },
-    dotToday: {
-        backgroundColor: 'transparent',
-        borderWidth: 1.5,
-        borderColor: '#C9A962',
-    },
-    dotTodayInner: {
-        width: DOT_SIZE * 0.5,
-        height: DOT_SIZE * 0.5,
-        borderRadius: DOT_SIZE * 0.25,
-        backgroundColor: '#C9A962',
-    },
-    dotsCaption: {
-        fontSize: 13,
-        color: 'rgba(255, 255, 255, 0.35)',
-        marginTop: theme.spacing.lg,
-        letterSpacing: 0.2,
+        fontSize: 17,
+        fontWeight: '300',
+        color: 'rgba(255, 255, 255, 0.5)',
+        textAlign: 'center',
+        lineHeight: 26,
+        letterSpacing: 0.5,
     },
     buttonContainer: {
-        width: '100%',
-        paddingHorizontal: theme.spacing.lg,
-    },
-    startButton: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        paddingVertical: 18,
         alignItems: 'center',
     },
-    startButtonText: {
+    button: {
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+        paddingVertical: 18,
+        paddingHorizontal: 48,
+        borderRadius: 30,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    buttonText: {
         fontSize: 16,
-        fontWeight: '600',
-        color: '#000000',
-        letterSpacing: 0.2,
+        fontWeight: '500',
+        color: '#FFFFFF',
+        letterSpacing: 1,
     },
 });
 

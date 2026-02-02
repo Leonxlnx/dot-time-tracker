@@ -50,6 +50,7 @@ const HomeScreen: React.FC = () => {
     const [colorPreset, setColorPreset] = useState<DotColorPreset>('gold');
     const [background, setBackground] = useState<BackgroundPreset>('none');
     const [customBackgroundUri, setCustomBackgroundUri] = useState<string | null>(null);
+    const [overlayOpacity, setOverlayOpacity] = useState(0.4);
     const [fontPreset, setFontPreset] = useState<FontPreset>('system');
     const [loading, setLoading] = useState(true);
     const [showSettings, setShowSettings] = useState(false);
@@ -384,6 +385,8 @@ const HomeScreen: React.FC = () => {
                                     onBackgroundChange={handleBackgroundChange}
                                     onUploadPress={handleUploadBackground}
                                     customBackgroundUri={customBackgroundUri}
+                                    overlayOpacity={overlayOpacity}
+                                    onOverlayChange={setOverlayOpacity}
                                 />
                             </View>
 
@@ -457,7 +460,7 @@ const HomeScreen: React.FC = () => {
                 style={styles.container}
                 resizeMode="cover"
             >
-                <View style={styles.backgroundOverlay} />
+                <View style={[styles.backgroundOverlay, { backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})` }]} />
                 <SafeAreaView style={styles.safeArea}>
                     {MainContent}
                 </SafeAreaView>

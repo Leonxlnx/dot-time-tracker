@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { theme } from '../theme';
 import { BackgroundPreset } from '../utils/storage';
 
@@ -8,50 +9,42 @@ interface BackgroundPickerProps {
     onBackgroundChange: (preset: BackgroundPreset) => void;
     onUploadPress: () => void;
     customBackgroundUri?: string | null;
+    overlayOpacity?: number;
+    onOverlayChange?: (opacity: number) => void;
 }
 
-// Temporarily disable static image loading to fix build
-// Will use dynamic loading or asset URIs instead
-const backgrounds: { preset: BackgroundPreset; name: string }[] = [
-    { preset: 'none', name: 'None' },
-    { preset: 'aurora', name: 'Aurora' },
-    { preset: 'marble', name: 'Marble' },
-    { preset: 'mesh', name: 'Mesh' },
-    { preset: 'stars', name: 'Stars' },
-    { preset: 'waves', name: 'Waves' },
-    { preset: 'gold', name: 'Gold' },
-    { preset: 'glass', name: 'Glass' },
+// Background color themes - premium subtle colors
+const backgrounds: { preset: BackgroundPreset; name: string; color: string }[] = [
+    { preset: 'none', name: 'None', color: 'transparent' },
+    { preset: 'aurora', name: 'Aurora', color: 'rgba(45, 80, 140, 0.5)' },
+    { preset: 'marble', name: 'Marble', color: 'rgba(50, 50, 55, 0.7)' },
+    { preset: 'mesh', name: 'Ocean', color: 'rgba(20, 60, 100, 0.5)' },
+    { preset: 'stars', name: 'Night', color: 'rgba(10, 10, 30, 0.8)' },
+    { preset: 'waves', name: 'Deep', color: 'rgba(25, 40, 70, 0.6)' },
+    { preset: 'gold', name: 'Warm', color: 'rgba(120, 90, 40, 0.4)' },
+    { preset: 'glass', name: 'Frost', color: 'rgba(80, 80, 100, 0.35)' },
 ];
 
-// Color representations for each background (fallback while images disabled)
-const backgroundColors: Record<string, string> = {
-    'none': 'transparent',
-    'aurora': 'rgba(45, 100, 180, 0.6)',
-    'marble': 'rgba(40, 40, 42, 0.8)',
-    'mesh': 'rgba(20, 80, 120, 0.6)',
-    'stars': 'rgba(5, 5, 20, 0.9)',
-    'waves': 'rgba(20, 40, 80, 0.7)',
-    'gold': 'rgba(180, 140, 50, 0.5)',
-    'glass': 'rgba(100, 100, 130, 0.4)',
-};
-
 export const getBackgroundSource = (_preset: BackgroundPreset): any => {
-    // Temporarily return null - backgrounds disabled for build
-    return null;
+    return null; // Using color backgrounds
 };
 
 export const getBackgroundColor = (preset: BackgroundPreset): string => {
-    return backgroundColors[preset] || 'transparent';
+    const bg = backgrounds.find(b => b.preset === preset);
+    return bg?.color || 'transparent';
 };
 
 const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
     currentBackground,
     onBackgroundChange,
     onUploadPress,
-    customBackgroundUri
+    customBackgroundUri,
+    overlayOpacity = 0.4,
+    onOverlayChange
 }) => {
     return (
         <View style={styles.container}>
+            {/* Background options */}
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -59,7 +52,6 @@ const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
             >
                 {backgrounds.map((bg) => {
                     const isSelected = currentBackground === bg.preset;
-                    const bgColor = backgroundColors[bg.preset] || 'transparent';
                     return (
                         <TouchableOpacity
                             key={bg.preset}
@@ -73,7 +65,7 @@ const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
                                         <Text style={styles.noneText}>∅</Text>
                                     </View>
                                 ) : (
-                                    <View style={[styles.colorPreview, { backgroundColor: bgColor }]} />
+                                    <View style={[styles.colorPreview, { backgroundColor: bg.color }]} />
                                 )}
                             </View>
                             <Text style={[styles.bgName, isSelected && styles.selectedName]}>
@@ -111,6 +103,27 @@ const BackgroundPicker: React.FC<BackgroundPickerProps> = ({
                     </Text>
                 </TouchableOpacity>
             </ScrollView>
+
+            {/* Dark overlay slider - only show for custom backgrounds */}
+            {currentBackground === 'custom' && customBackgroundUri && onOverlayChange && (
+                <View style={styles.sliderContainer}>
+                    <Text style={styles.sliderLabel}>Darkness</Text>
+                    <View style={styles.sliderRow}>
+                        <Text style={styles.sliderValue}>☀️</Text>
+                        <Slider
+                            style={styles.slider}
+                            minimumValue={0}
+                            maximumValue={0.8}
+                            value={overlayOpacity}
+                            onValueChange={onOverlayChange}
+                            minimumTrackTintColor="rgba(255, 255, 255, 0.4)"
+                            maximumTrackTintColor="rgba(255, 255, 255, 0.1)"
+                            thumbTintColor="#FFFFFF"
+                        />
+                        <Text style={styles.sliderValue}>🌙</Text>
+                    </View>
+                </View>
+            )}
         </View>
     );
 };
@@ -178,6 +191,27 @@ const styles = StyleSheet.create({
     },
     selectedName: {
         color: 'rgba(255, 255, 255, 0.7)',
+    },
+    sliderContainer: {
+        marginTop: theme.spacing.lg,
+        paddingHorizontal: theme.spacing.xl,
+    },
+    sliderLabel: {
+        fontSize: 12,
+        color: 'rgba(255, 255, 255, 0.4)',
+        marginBottom: 8,
+    },
+    sliderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    slider: {
+        flex: 1,
+        height: 40,
+    },
+    sliderValue: {
+        fontSize: 14,
     },
 });
 

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, Dimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { theme } from '../theme';
 import { ViewType } from '../utils/timeUtils';
@@ -15,213 +15,158 @@ const views: { type: ViewType; label: string }[] = [
     { type: 'life', label: 'Life' },
 ];
 
-const TAB_WIDTH = 72;
-const TAB_HEIGHT = 38;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const TAB_WIDTH = (SCREEN_WIDTH - theme.spacing.xl * 2 - 8) / 3;
 
 const ViewSelector: React.FC<ViewSelectorProps> = ({ currentView, onViewChange }) => {
-    const slideAnim = useRef(new Animated.Value(0)).current;
-    const indicatorPosition = useRef(new Animated.Value(0)).current;
+    const indicatorPosition = useRef(new Animated.Value(getTabIndex(currentView) * TAB_WIDTH)).current;
     const indicatorScale = useRef(new Animated.Value(1)).current;
+    const tabScales = useRef(views.map(() => new Animated.Value(1))).current;
+
+    function getTabIndex(view: ViewType): number {
+        return views.findIndex(v => v.type === view);
+    }
 
     useEffect(() => {
-        Animated.spring(slideAnim, {
-            toValue: 1,
-            damping: 18,
-            stiffness: 180,
-            delay: 150,
-            useNativeDriver: true,
-        }).start();
-    }, []);
+        const newIndex = getTabIndex(currentView);
 
-    // Smooth liquid indicator animation
-    useEffect(() => {
-        const index = views.findIndex(v => v.type === currentView);
-
-        // Squish effect during transition
-        Animated.sequence([
-            Animated.timing(indicatorScale, {
-                toValue: 0.92,
-                duration: 80,
-                easing: Easing.out(Easing.cubic),
+        // Smooth spring animation with slight scale bounce
+        Animated.parallel([
+            Animated.spring(indicatorPosition, {
+                toValue: newIndex * TAB_WIDTH,
+                damping: 20,
+                stiffness: 250,
+                mass: 0.8,
                 useNativeDriver: true,
             }),
-            Animated.parallel([
-                Animated.spring(indicatorPosition, {
-                    toValue: index * TAB_WIDTH,
-                    damping: 20,
-                    stiffness: 200,
+            Animated.sequence([
+                Animated.timing(indicatorScale, {
+                    toValue: 0.95,
+                    duration: 80,
                     useNativeDriver: true,
                 }),
                 Animated.spring(indicatorScale, {
                     toValue: 1,
-                    damping: 15,
-                    stiffness: 300,
+                    damping: 12,
+                    stiffness: 200,
                     useNativeDriver: true,
                 }),
             ]),
         ]).start();
     }, [currentView]);
 
-    const translateY = slideAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [50, 0],
-    });
+    const handlePress = (view: ViewType, index: number) => {
+        // Subtle press feedback
+        Animated.sequence([
+            Animated.timing(tabScales[index], {
+                toValue: 0.92,
+                duration: 60,
+                useNativeDriver: true,
+            }),
+            Animated.spring(tabScales[index], {
+                toValue: 1,
+                damping: 15,
+                stiffness: 300,
+                useNativeDriver: true,
+            }),
+        ]).start();
+
+        onViewChange(view);
+    };
 
     return (
-        <Animated.View
-            style={[
-                styles.container,
-                {
-                    opacity: slideAnim,
-                    transform: [{ translateY }],
-                }
-            ]}
-        >
-            <View style={styles.outerWrapper}>
-                {/* Liquid glass background */}
-                <View style={styles.glassBackground}>
-                    <View style={styles.glassInner} />
-                    {/* Top edge highlight */}
-                    <View style={styles.topHighlight} />
-                    {/* Bottom shadow line */}
-                    <View style={styles.bottomShadow} />
-                </View>
-
-                <View style={styles.selector}>
-                    {/* Animated sliding indicator - liquid pill */}
+        <View style={styles.wrapper}>
+            <BlurView intensity={40} tint="dark" style={styles.container}>
+                <View style={styles.innerContainer}>
+                    {/* Sliding indicator */}
                     <Animated.View
                         style={[
                             styles.indicator,
                             {
                                 transform: [
                                     { translateX: indicatorPosition },
-                                    { scale: indicatorScale },
-                                ]
+                                    { scaleX: indicatorScale },
+                                ],
                             }
                         ]}
-                    >
-                        {/* Inner glow */}
-                        <View style={styles.indicatorInner} />
-                    </Animated.View>
+                    />
 
-                    {views.map((view) => {
+                    {/* Tab buttons */}
+                    {views.map((view, index) => {
                         const isActive = currentView === view.type;
                         return (
-                            <TouchableOpacity
+                            <Animated.View
                                 key={view.type}
-                                style={styles.tab}
-                                onPress={() => onViewChange(view.type)}
-                                activeOpacity={0.6}
+                                style={[
+                                    styles.tabWrapper,
+                                    { transform: [{ scale: tabScales[index] }] }
+                                ]}
                             >
-                                <Animated.Text
-                                    style={[
-                                        styles.tabText,
-                                        isActive && styles.activeTabText
-                                    ]}
+                                <TouchableOpacity
+                                    style={styles.tab}
+                                    activeOpacity={0.8}
+                                    onPress={() => handlePress(view.type, index)}
                                 >
-                                    {view.label}
-                                </Animated.Text>
-                            </TouchableOpacity>
+                                    <Text style={[
+                                        styles.tabText,
+                                        isActive && styles.tabTextActive
+                                    ]}>
+                                        {view.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            </Animated.View>
                         );
                     })}
                 </View>
-            </View>
-        </Animated.View>
+            </BlurView>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
+    wrapper: {
         position: 'absolute',
-        bottom: theme.spacing.xxl,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
+        bottom: 40,
+        left: theme.spacing.xl,
+        right: theme.spacing.xl,
     },
-    outerWrapper: {
-        position: 'relative',
-        borderRadius: 26,
+    container: {
+        borderRadius: 20,
         overflow: 'hidden',
     },
-    glassBackground: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(20, 20, 22, 0.85)',
-        borderRadius: 26,
-    },
-    glassInner: {
-        position: 'absolute',
-        top: 1,
-        left: 1,
-        right: 1,
-        bottom: 1,
-        backgroundColor: 'rgba(30, 30, 32, 0.6)',
-        borderRadius: 25,
-    },
-    topHighlight: {
-        position: 'absolute',
-        top: 0,
-        left: 24,
-        right: 24,
-        height: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    },
-    bottomShadow: {
-        position: 'absolute',
-        bottom: 0,
-        left: 24,
-        right: 24,
-        height: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    },
-    selector: {
+    innerContainer: {
         flexDirection: 'row',
-        padding: 5,
-        position: 'relative',
+        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+        borderRadius: 20,
+        padding: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.06)',
     },
     indicator: {
         position: 'absolute',
-        width: TAB_WIDTH - 4,
-        height: TAB_HEIGHT,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        top: 5,
-        left: 7,
-        // Soft shadow for depth
-        shadowColor: '#FFFFFF',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 4,
+        top: 4,
+        left: 4,
+        width: TAB_WIDTH,
+        height: '100%',
+        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+        borderRadius: 16,
     },
-    indicatorInner: {
-        position: 'absolute',
-        top: 1,
-        left: 1,
-        right: 1,
-        bottom: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 19,
+    tabWrapper: {
+        flex: 1,
     },
     tab: {
-        width: TAB_WIDTH,
-        height: TAB_HEIGHT,
+        paddingVertical: 14,
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1,
     },
     tabText: {
-        fontSize: 13,
+        fontSize: 14,
+        fontWeight: '500',
         color: 'rgba(255, 255, 255, 0.4)',
-        fontWeight: '600',
-        letterSpacing: 0.1,
+        letterSpacing: 0.5,
     },
-    activeTabText: {
-        color: '#000000',
-        fontWeight: '700',
+    tabTextActive: {
+        color: '#FFFFFF',
     },
 });
 
