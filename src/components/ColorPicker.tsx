@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { theme, DotColorPreset } from '../theme';
 
 interface ColorPickerProps {
@@ -8,12 +7,13 @@ interface ColorPickerProps {
     onColorChange: (preset: DotColorPreset) => void;
 }
 
-const colorOptions: { preset: DotColorPreset; name: string; colors: string[] }[] = [
-    { preset: 'default', name: 'Gold', colors: ['#FFE082', '#D4AF37', '#A67C00'] },
-    { preset: 'ocean', name: 'Ocean', colors: ['#80D8FF', '#40C4FF', '#0288D1'] },
-    { preset: 'mint', name: 'Mint', colors: ['#A7FFEB', '#64FFDA', '#00BFA5'] },
-    { preset: 'rose', name: 'Rose', colors: ['#FF8A80', '#FF5252', '#D32F2F'] },
-    { preset: 'purple', name: 'Violet', colors: ['#EA80FC', '#E040FB', '#9C27B0'] },
+const colorOptions: { preset: DotColorPreset; name: string; color: string }[] = [
+    { preset: 'default', name: 'Gold', color: '#C9A962' },
+    { preset: 'silver', name: 'Silver', color: '#E8E8E8' },
+    { preset: 'ocean', name: 'Ocean', color: '#64B5F6' },
+    { preset: 'mint', name: 'Mint', color: '#81C784' },
+    { preset: 'rose', name: 'Rose', color: '#E57373' },
+    { preset: 'purple', name: 'Violet', color: '#B39DDB' },
 ];
 
 const ColorPicker: React.FC<ColorPickerProps> = ({ currentColor, onColorChange }) => {
@@ -24,24 +24,26 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ currentColor, onColorChange }
                 return (
                     <TouchableOpacity
                         key={option.preset}
-                        style={[
-                            styles.colorOption,
-                            isSelected && styles.selectedOption,
-                        ]}
+                        style={styles.colorOption}
                         activeOpacity={0.7}
                         onPress={() => onColorChange(option.preset)}
                     >
                         <View style={styles.colorCircleContainer}>
-                            <LinearGradient
-                                colors={option.colors as [string, string, ...string[]]}
-                                start={{ x: 0.3, y: 0 }}
-                                end={{ x: 0.7, y: 1 }}
-                                style={styles.colorCircle}
-                            >
-                                {/* Highlight effect */}
-                                <View style={styles.highlight} />
-                            </LinearGradient>
-                            {isSelected && <View style={styles.glowRing} />}
+                            <View
+                                style={[
+                                    styles.colorCircle,
+                                    { backgroundColor: option.color },
+                                    isSelected && styles.selectedCircle,
+                                ]}
+                            />
+                            {isSelected && (
+                                <View
+                                    style={[
+                                        styles.selectedRing,
+                                        { borderColor: option.color }
+                                    ]}
+                                />
+                            )}
                         </View>
                         <Text style={[styles.colorName, isSelected && styles.selectedName]}>
                             {option.name}
@@ -57,56 +59,48 @@ const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingTop: theme.spacing.sm,
+        paddingTop: theme.spacing.xs,
     },
     colorOption: {
         alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 4,
-        borderRadius: 12,
+        paddingVertical: 6,
+        paddingHorizontal: 2,
         flex: 1,
-    },
-    selectedOption: {
-        // Selected styling handled by glow
     },
     colorCircleContainer: {
         position: 'relative',
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: theme.spacing.sm,
+        width: 48,
+        height: 48,
     },
     colorCircle: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        overflow: 'hidden',
-        position: 'relative',
+        width: 32,
+        height: 32,
+        borderRadius: 16,
     },
-    highlight: {
-        position: 'absolute',
-        top: 6,
-        left: 8,
-        width: 14,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: 'rgba(255,255,255,0.45)',
+    selectedCircle: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
     },
-    glowRing: {
+    selectedRing: {
         position: 'absolute',
-        width: 52,
-        height: 52,
-        borderRadius: 26,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         borderWidth: 2,
-        borderColor: 'rgba(255,255,255,0.25)',
+        opacity: 0.5,
     },
     colorName: {
-        fontSize: 11,
-        color: 'rgba(255,255,255,0.4)',
+        fontSize: 10,
+        color: 'rgba(255,255,255,0.35)',
         fontWeight: '500',
-        letterSpacing: 0.2,
+        letterSpacing: 0.1,
     },
     selectedName: {
-        color: 'rgba(255,255,255,0.8)',
+        color: 'rgba(255,255,255,0.7)',
     },
 });
 

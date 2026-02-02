@@ -1,43 +1,50 @@
 export const theme = {
   colors: {
     background: '#000000',
-    surface: '#0A0A0A',
-    surfaceGlass: 'rgba(255, 255, 255, 0.06)',
-    surfaceHover: 'rgba(255, 255, 255, 0.1)',
+    surface: '#080808',
+    surfaceElevated: '#0F0F0F',
+    surfaceGlass: 'rgba(255, 255, 255, 0.04)',
+    surfaceHover: 'rgba(255, 255, 255, 0.08)',
     text: '#FFFFFF',
-    textSecondary: 'rgba(255, 255, 255, 0.45)',
-    textTertiary: 'rgba(255, 255, 255, 0.2)',
+    textSecondary: 'rgba(255, 255, 255, 0.5)',
+    textTertiary: 'rgba(255, 255, 255, 0.25)',
 
-    // Dot color presets
+    // Premium minimalist dot color presets
+    // Passed = subtle gray, Empty = barely visible, Today = accent
     dotPresets: {
       default: {
-        passed: '#FFFFFF',
+        passed: 'rgba(255, 255, 255, 0.55)',
         empty: 'rgba(255, 255, 255, 0.08)',
-        today: '#D4AF37', // Champagne Gold
+        today: '#C9A962', // Muted gold
+      },
+      silver: {
+        passed: 'rgba(255, 255, 255, 0.45)',
+        empty: 'rgba(255, 255, 255, 0.06)',
+        today: '#E8E8E8', // Silver white
       },
       ocean: {
-        passed: '#38BDF8',
-        empty: 'rgba(56, 189, 248, 0.1)',
-        today: '#0EA5E9',
+        passed: 'rgba(255, 255, 255, 0.45)',
+        empty: 'rgba(255, 255, 255, 0.06)',
+        today: '#64B5F6', // Soft blue
       },
       mint: {
-        passed: '#34D399',
-        empty: 'rgba(52, 211, 153, 0.1)',
-        today: '#10B981',
+        passed: 'rgba(255, 255, 255, 0.45)',
+        empty: 'rgba(255, 255, 255, 0.06)',
+        today: '#81C784', // Soft green
       },
       rose: {
-        passed: '#FB7185',
-        empty: 'rgba(251, 113, 133, 0.1)',
-        today: '#F43F5E',
+        passed: 'rgba(255, 255, 255, 0.45)',
+        empty: 'rgba(255, 255, 255, 0.06)',
+        today: '#E57373', // Soft rose
       },
       purple: {
-        passed: '#A78BFA',
-        empty: 'rgba(167, 139, 250, 0.1)',
-        today: '#8B5CF6',
+        passed: 'rgba(255, 255, 255, 0.45)',
+        empty: 'rgba(255, 255, 255, 0.06)',
+        today: '#B39DDB', // Soft lavender
       },
     },
 
-    border: 'rgba(255, 255, 255, 0.08)',
+    border: 'rgba(255, 255, 255, 0.06)',
   },
   spacing: {
     xxs: 2,
@@ -49,18 +56,9 @@ export const theme = {
     xxl: 48,
     xxxl: 64,
   },
-  // Responsive dot sizing
   dots: {
-    gap: {
-      month: 6,
-      year: 3,
-      life: 5,
-    },
-    size: {
-      month: { min: 32, max: 44 },
-      year: { min: 8, max: 14 },
-      life: { min: 20, max: 32 },
-    },
+    // Smaller dots with more spacing for premium feel
+    gapRatio: 0.5, // Gap = 50% of dot size
   },
   fontSize: {
     xs: 11,
@@ -79,36 +77,35 @@ export const theme = {
     full: 999,
   },
   shadows: {
-    none: {},
+    subtle: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 2,
+    },
     soft: {
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 4,
-    },
-    glass: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 12 },
-      shadowOpacity: 0.4,
-      shadowRadius: 20,
-      elevation: 10,
-    },
-    glow: {
-      shadowColor: '#D4AF37',
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.5,
-      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.35,
+      shadowRadius: 12,
       elevation: 6,
+    },
+    elevated: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 16 },
+      shadowOpacity: 0.5,
+      shadowRadius: 24,
+      elevation: 12,
     },
   },
   animation: {
-    fast: 150,
-    normal: 250,
-    slow: 400,
+    fast: 120,
+    normal: 220,
+    slow: 350,
     spring: {
-      damping: 15,
-      stiffness: 150,
+      damping: 18,
+      stiffness: 180,
     },
   },
 };

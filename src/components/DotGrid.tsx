@@ -13,51 +13,50 @@ interface DotGridProps {
 const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'default' }) => {
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const scaleAnim = useRef(new Animated.Value(0.96)).current;
+    const scaleAnim = useRef(new Animated.Value(0.97)).current;
 
     const cells = useMemo(() => generateDotCells(timeData, viewType), [timeData, viewType]);
 
     useEffect(() => {
         fadeAnim.setValue(0);
-        scaleAnim.setValue(0.97);
+        scaleAnim.setValue(0.98);
 
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
-                duration: 300,
+                duration: 250,
                 easing: Easing.out(Easing.cubic),
                 useNativeDriver: true,
             }),
             Animated.spring(scaleAnim, {
                 toValue: 1,
-                damping: 18,
-                stiffness: 150,
+                damping: 20,
+                stiffness: 180,
                 useNativeDriver: true,
             }),
         ]).start();
     }, [viewType]);
 
-    // Smart layout using available width AND height
+    // Premium layout: smaller dots, more spacing
     const getResponsiveConfig = () => {
-        const horizontalPadding = theme.spacing.lg * 2;
+        const horizontalPadding = theme.spacing.xl * 2;
         const availableWidth = SCREEN_WIDTH - horizontalPadding;
-        const availableHeight = SCREEN_HEIGHT * 0.45;
-        const gapRatio = 0.2;
+        const availableHeight = SCREEN_HEIGHT * 0.42;
+        const gapRatio = theme.dots.gapRatio; // 50% gap ratio for premium spacing
 
         const total = timeData.totalDays;
 
-        // Find optimal columns by trying different values
-        let bestConfig = { columns: 7, dotSize: 10, gap: 2 };
+        let bestConfig = { columns: 7, dotSize: 10, gap: 5 };
         let bestDotSize = 0;
 
-        // Test column range based on view type
-        const minCols = viewType === 'year' ? 15 : viewType === 'life' ? 8 : 5;
-        const maxCols = viewType === 'year' ? 30 : viewType === 'life' ? 15 : 10;
+        // Determine column range based on view
+        const minCols = viewType === 'year' ? 18 : viewType === 'life' ? 10 : 7;
+        const maxCols = viewType === 'year' ? 28 : viewType === 'life' ? 14 : 8;
 
         for (let cols = minCols; cols <= maxCols; cols++) {
             const rows = Math.ceil(total / cols);
 
-            // Calculate dot size for this column count
+            // Calculate with more generous gap ratio
             const dotByWidth = availableWidth / (cols + (cols - 1) * gapRatio);
             const dotByHeight = availableHeight / (rows + (rows - 1) * gapRatio);
             const dotSize = Math.min(dotByWidth, dotByHeight);
@@ -72,7 +71,15 @@ const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'de
             }
         }
 
-        return bestConfig;
+        // Apply size limits for premium look
+        const maxSize = viewType === 'month' ? 28 : viewType === 'life' ? 20 : 8;
+        const finalDotSize = Math.min(bestConfig.dotSize, maxSize);
+
+        return {
+            columns: bestConfig.columns,
+            dotSize: finalDotSize,
+            gap: finalDotSize * gapRatio
+        };
     };
 
     const { columns, dotSize, gap } = getResponsiveConfig();
@@ -120,10 +127,9 @@ const styles = StyleSheet.create({
     },
     centerWrapper: {
         flex: 1,
-        justifyContent: 'flex-start',
+        justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: theme.spacing.lg,
-        paddingTop: theme.spacing.md,
+        paddingHorizontal: theme.spacing.xl,
     },
     grid: {
         alignItems: 'center',
