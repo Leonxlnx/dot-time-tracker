@@ -2,18 +2,26 @@ import React, { useMemo, useEffect, useRef } from 'react';
 import { View, StyleSheet, Dimensions, Animated, Easing } from 'react-native';
 import { theme, DotColorPreset } from '../theme';
 import { TimeData, ViewType, generateDotCells } from '../utils/timeUtils';
+import { useParallax } from '../hooks/useParallax';
 import Dot from './Dot';
 
 interface DotGridProps {
     timeData: TimeData;
     viewType: ViewType;
     colorPreset?: DotColorPreset;
+    parallaxEnabled?: boolean;
 }
 
-const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'gold' }) => {
+const DotGrid: React.FC<DotGridProps> = ({
+    timeData,
+    viewType,
+    colorPreset = 'gold',
+    parallaxEnabled = true
+}) => {
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(0.96)).current;
+    const { x: parallaxX, y: parallaxY } = useParallax(parallaxEnabled ? 8 : 0);
 
     const cells = useMemo(() => generateDotCells(timeData, viewType), [timeData, viewType]);
 
@@ -100,7 +108,11 @@ const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'go
                 styles.container,
                 {
                     opacity: fadeAnim,
-                    transform: [{ scale: scaleAnim }],
+                    transform: [
+                        { scale: scaleAnim },
+                        { translateX: parallaxX },
+                        { translateY: parallaxY },
+                    ],
                 }
             ]}
         >

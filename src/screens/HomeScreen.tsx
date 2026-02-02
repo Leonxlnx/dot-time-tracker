@@ -16,14 +16,26 @@ import {
     Easing,
     Dimensions,
     Switch,
+    ImageBackground,
+    Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { theme, DotColorPreset } from '../theme';
 import { ViewType, getTimeData } from '../utils/timeUtils';
-import { getBirthYear, saveBirthYear, getViewType, saveViewType, getColorPreset, saveColorPreset, getOnboardingComplete, setOnboardingComplete } from '../utils/storage';
+import {
+    getBirthYear, saveBirthYear, getViewType, saveViewType,
+    getColorPreset, saveColorPreset, getOnboardingComplete, setOnboardingComplete,
+    getBackground, saveBackground, getCustomBackground, saveCustomBackground,
+    getFont, saveFont, getLastVisit, saveLastVisit, shouldShowWelcome,
+    BackgroundPreset, FontPreset
+} from '../utils/storage';
 import { getNotificationSettings, saveNotificationSettings, requestNotificationPermissions } from '../utils/notifications';
 import DotGrid from '../components/DotGrid';
 import ViewSelector from '../components/ViewSelector';
 import ColorPicker from '../components/ColorPicker';
+import BackgroundPicker, { getBackgroundSource, getBackgroundColor } from '../components/BackgroundPicker';
+import FontPicker from '../components/FontPicker';
+import WelcomeOverlay from '../components/WelcomeOverlay';
 import OnboardingScreen from './OnboardingScreen';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -36,9 +48,13 @@ const HomeScreen: React.FC = () => {
     const [viewType, setViewType] = useState<ViewType>('month');
     const [birthYear, setBirthYear] = useState<number>(1990);
     const [colorPreset, setColorPreset] = useState<DotColorPreset>('gold');
+    const [background, setBackground] = useState<BackgroundPreset>('none');
+    const [customBackgroundUri, setCustomBackgroundUri] = useState<string | null>(null);
+    const [fontPreset, setFontPreset] = useState<FontPreset>('system');
     const [loading, setLoading] = useState(true);
     const [showSettings, setShowSettings] = useState(false);
     const [showOnboarding, setShowOnboarding] = useState(false);
+    const [showWelcome, setShowWelcome] = useState(false);
     const [tempBirthYear, setTempBirthYear] = useState('');
 
     // Notification settings
@@ -55,17 +71,27 @@ const HomeScreen: React.FC = () => {
     useEffect(() => {
         const loadPreferences = async () => {
             try {
-                const [savedView, savedBirthYear, savedColor, onboardingDone, notifSettings] = await Promise.all([
+                const [
+                    savedView, savedBirthYear, savedColor, onboardingDone, notifSettings,
+                    savedBackground, savedCustomBg, savedFont, shouldWelcome
+                ] = await Promise.all([
                     getViewType(),
                     getBirthYear(),
                     getColorPreset(),
                     getOnboardingComplete(),
                     getNotificationSettings(),
+                    getBackground(),
+                    getCustomBackground(),
+                    getFont(),
+                    shouldShowWelcome(),
                 ]);
 
                 if (savedView) setViewType(savedView as ViewType);
                 if (savedBirthYear) setBirthYear(savedBirthYear);
                 if (savedColor) setColorPreset(savedColor as DotColorPreset);
+                if (savedBackground) setBackground(savedBackground);
+                if (savedCustomBg) setCustomBackgroundUri(savedCustomBg);
+                if (savedFont) setFontPreset(savedFont);
 
                 setNotificationsEnabled(notifSettings.enabled);
                 setNotificationHour(notifSettings.hour);
@@ -73,7 +99,12 @@ const HomeScreen: React.FC = () => {
 
                 if (!onboardingDone) {
                     setShowOnboarding(true);
+                } else if (shouldWelcome) {
+                    setShowWelcome(true);
                 }
+
+                // Save this visit
+                await saveLastVisit();
             } catch (error) {
                 console.error('Error loading preferences:', error);
             } finally {
@@ -130,6 +161,7 @@ const HomeScreen: React.FC = () => {
     const handleOnboardingComplete = async () => {
         await setOnboardingComplete(true);
         setShowOnboarding(false);
+        setShowWelcome(true); // Show welcome after onboarding
     };
 
     const handleViewChange = useCallback(async (view: ViewType) => {
@@ -141,6 +173,38 @@ const HomeScreen: React.FC = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setColorPreset(preset);
         await saveColorPreset(preset);
+    };
+
+    const handleBackgroundChange = async (preset: BackgroundPreset) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setBackground(preset);
+        await saveBackground(preset);
+    };
+
+    const handleFontChange = async (font: FontPreset) => {
+        setFontPreset(font);
+        await saveFont(font);
+    };
+
+    const handleUploadBackground = async () => {
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [9, 16],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                const uri = result.assets[0].uri;
+                setCustomBackgroundUri(uri);
+                setBackground('custom');
+                await saveCustomBackground(uri);
+                await saveBackground('custom');
+            }
+        } catch (error) {
+            console.error('Error picking image:', error);
+        }
     };
 
     const handleSaveBirthYear = async () => {
@@ -204,6 +268,11 @@ const HomeScreen: React.FC = () => {
         outputRange: ['0deg', '90deg'],
     });
 
+    // Get background source
+    const backgroundSource = background === 'custom' && customBackgroundUri
+        ? { uri: customBackgroundUri }
+        : getBackgroundSource(background);
+
     if (loading) {
         return <View style={styles.container} />;
     }
@@ -212,9 +281,15 @@ const HomeScreen: React.FC = () => {
         return <OnboardingScreen onComplete={handleOnboardingComplete} />;
     }
 
-    return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#000000" translucent />
+    const MainContent = (
+        <>
+            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+            {/* Welcome Overlay with Confetti */}
+            <WelcomeOverlay
+                visible={showWelcome}
+                onComplete={() => setShowWelcome(false)}
+            />
 
             {/* Header */}
             <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
@@ -254,7 +329,12 @@ const HomeScreen: React.FC = () => {
 
             {/* Dots Grid */}
             <View style={styles.gridContainer}>
-                <DotGrid timeData={timeData} viewType={viewType} colorPreset={colorPreset} />
+                <DotGrid
+                    timeData={timeData}
+                    viewType={viewType}
+                    colorPreset={colorPreset}
+                    parallaxEnabled={true}
+                />
             </View>
 
             {/* View Selector */}
@@ -296,6 +376,29 @@ const HomeScreen: React.FC = () => {
                                 </View>
                             </View>
 
+                            {/* Background */}
+                            <View style={styles.section}>
+                                <Text style={styles.sectionLabel}>Background</Text>
+                                <BackgroundPicker
+                                    currentBackground={background}
+                                    onBackgroundChange={handleBackgroundChange}
+                                    onUploadPress={handleUploadBackground}
+                                    customBackgroundUri={customBackgroundUri}
+                                />
+                            </View>
+
+                            {/* Color Theme */}
+                            <View style={styles.section}>
+                                <Text style={styles.sectionLabel}>Theme Color</Text>
+                                <ColorPicker currentColor={colorPreset} onColorChange={handleColorChange} />
+                            </View>
+
+                            {/* Font */}
+                            <View style={styles.section}>
+                                <Text style={styles.sectionLabel}>Font</Text>
+                                <FontPicker currentFont={fontPreset} onFontChange={handleFontChange} />
+                            </View>
+
                             {/* Notifications */}
                             <View style={styles.section}>
                                 <Text style={styles.sectionLabel}>Daily Reminder</Text>
@@ -335,16 +438,36 @@ const HomeScreen: React.FC = () => {
                                     </View>
                                 )}
                             </View>
-
-                            {/* Color Theme */}
-                            <View style={styles.section}>
-                                <Text style={styles.sectionLabel}>Theme</Text>
-                                <ColorPicker currentColor={colorPreset} onColorChange={handleColorChange} />
-                            </View>
                         </ScrollView>
                     </View>
                 </View>
             </Modal>
+        </>
+    );
+
+    // Get background color (or use custom image)
+    const bgColor = background === 'custom' ? undefined : getBackgroundColor(background);
+    const hasCustomBg = background === 'custom' && customBackgroundUri;
+
+    // Render with background
+    if (hasCustomBg) {
+        return (
+            <ImageBackground
+                source={{ uri: customBackgroundUri }}
+                style={styles.container}
+                resizeMode="cover"
+            >
+                <View style={styles.backgroundOverlay} />
+                <SafeAreaView style={styles.safeArea}>
+                    {MainContent}
+                </SafeAreaView>
+            </ImageBackground>
+        );
+    }
+
+    return (
+        <SafeAreaView style={[styles.container, bgColor && bgColor !== 'transparent' && { backgroundColor: bgColor }]}>
+            {MainContent}
         </SafeAreaView>
     );
 };
@@ -353,6 +476,13 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#000000',
+    },
+    safeArea: {
+        flex: 1,
+    },
+    backgroundOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
     },
     header: {
         flexDirection: 'row',
@@ -425,7 +555,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         paddingBottom: theme.spacing.xxxl + 20,
-        maxHeight: '72%',
+        maxHeight: '80%',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.05)',
         borderBottomWidth: 0,
