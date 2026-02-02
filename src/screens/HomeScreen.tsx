@@ -41,8 +41,7 @@ const HomeScreen: React.FC = () => {
 
     // Animations
     const headerOpacity = useRef(new Animated.Value(0)).current;
-    const headerTranslate = useRef(new Animated.Value(-30)).current;
-    const numberScale = useRef(new Animated.Value(0.7)).current;
+    const numberScale = useRef(new Animated.Value(0.8)).current;
 
     useEffect(() => {
         const loadPreferences = async () => {
@@ -66,25 +65,17 @@ const HomeScreen: React.FC = () => {
             } finally {
                 setLoading(false);
 
-                // Smooth entrance
                 Animated.parallel([
                     Animated.timing(headerOpacity, {
                         toValue: 1,
-                        duration: 700,
-                        easing: Easing.out(Easing.cubic),
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(headerTranslate, {
-                        toValue: 0,
-                        duration: 700,
+                        duration: 400,
                         easing: Easing.out(Easing.cubic),
                         useNativeDriver: true,
                     }),
                     Animated.spring(numberScale, {
                         toValue: 1,
-                        damping: 10,
-                        stiffness: 80,
-                        delay: 150,
+                        damping: 12,
+                        stiffness: 120,
                         useNativeDriver: true,
                     }),
                 ]).start();
@@ -94,13 +85,12 @@ const HomeScreen: React.FC = () => {
         loadPreferences();
     }, []);
 
-    // Animate number on view change
     useEffect(() => {
-        numberScale.setValue(0.85);
+        numberScale.setValue(0.9);
         Animated.spring(numberScale, {
             toValue: 1,
-            damping: 10,
-            stiffness: 180,
+            damping: 12,
+            stiffness: 200,
             useNativeDriver: true,
         }).start();
     }, [viewType]);
@@ -112,7 +102,7 @@ const HomeScreen: React.FC = () => {
 
     const handleViewChange = useCallback(async (view: ViewType) => {
         LayoutAnimation.configureNext({
-            duration: 350,
+            duration: 300,
             update: { type: 'easeInEaseOut' },
         });
         setViewType(view);
@@ -148,23 +138,10 @@ const HomeScreen: React.FC = () => {
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor="#000000" translucent />
 
-            {/* Clean Header */}
-            <Animated.View
-                style={[
-                    styles.header,
-                    {
-                        opacity: headerOpacity,
-                        transform: [{ translateY: headerTranslate }],
-                    }
-                ]}
-            >
+            {/* Header */}
+            <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
                 <View style={styles.headerContent}>
-                    <Animated.Text
-                        style={[
-                            styles.headerNumber,
-                            { transform: [{ scale: numberScale }] }
-                        ]}
-                    >
+                    <Animated.Text style={[styles.headerNumber, { transform: [{ scale: numberScale }] }]}>
                         {timeData.remainingDays}
                     </Animated.Text>
                     <Text style={styles.headerLabel}>{timeData.label}</Text>
@@ -186,7 +163,7 @@ const HomeScreen: React.FC = () => {
                 </TouchableOpacity>
             </Animated.View>
 
-            {/* Centered Dots Grid */}
+            {/* Dots Grid */}
             <View style={styles.gridContainer}>
                 <DotGrid timeData={timeData} viewType={viewType} colorPreset={colorPreset} />
             </View>
@@ -194,7 +171,7 @@ const HomeScreen: React.FC = () => {
             {/* View Selector */}
             <ViewSelector currentView={viewType} onViewChange={handleViewChange} />
 
-            {/* Settings Modal */}
+            {/* Settings Modal - Opens higher */}
             <Modal
                 visible={showSettings}
                 animationType="slide"
@@ -211,43 +188,31 @@ const HomeScreen: React.FC = () => {
                     <View style={styles.modalContent}>
                         <View style={styles.modalHandle} />
 
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Settings</Text>
+                        {/* Birth Year - Top section, immediately visible */}
+                        <View style={styles.birthYearSection}>
+                            <Text style={styles.birthYearLabel}>Birth Year</Text>
+                            <View style={styles.birthYearRow}>
+                                <TextInput
+                                    style={styles.birthYearInput}
+                                    value={tempBirthYear}
+                                    onChangeText={setTempBirthYear}
+                                    keyboardType="numeric"
+                                    maxLength={4}
+                                    placeholder="1990"
+                                    placeholderTextColor="rgba(255,255,255,0.2)"
+                                    selectTextOnFocus
+                                />
+                                <TouchableOpacity style={styles.saveButton} onPress={handleSaveBirthYear} activeOpacity={0.85}>
+                                    <Text style={styles.saveButtonText}>Save</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
 
-                        <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-                            {/* Birth Year */}
-                            <View style={styles.settingSection}>
-                                <Text style={styles.sectionLabel}>Birth Year</Text>
-                                <Text style={styles.sectionDescription}>Enter your birth year for Life view</Text>
-                                <View style={styles.birthYearContainer}>
-                                    <TextInput
-                                        style={styles.birthYearInput}
-                                        value={tempBirthYear}
-                                        onChangeText={setTempBirthYear}
-                                        keyboardType="numeric"
-                                        maxLength={4}
-                                        placeholder="1990"
-                                        placeholderTextColor="rgba(255,255,255,0.2)"
-                                        selectTextOnFocus
-                                    />
-                                    <TouchableOpacity
-                                        style={styles.saveButton}
-                                        onPress={handleSaveBirthYear}
-                                        activeOpacity={0.8}
-                                    >
-                                        <Text style={styles.saveButtonText}>Save</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-
-                            {/* Color Picker */}
-                            <View style={styles.settingSection}>
-                                <Text style={styles.sectionLabel}>Color Theme</Text>
-                                <Text style={styles.sectionDescription}>Choose your dot color palette</Text>
-                                <ColorPicker currentColor={colorPreset} onColorChange={handleColorChange} />
-                            </View>
-                        </ScrollView>
+                        {/* Color Picker */}
+                        <View style={styles.colorSection}>
+                            <Text style={styles.sectionLabel}>Theme</Text>
+                            <ColorPicker currentColor={colorPreset} onColorChange={handleColorChange} />
+                        </View>
                     </View>
                 </View>
             </Modal>
@@ -265,35 +230,35 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         paddingHorizontal: theme.spacing.xl,
-        paddingTop: Platform.OS === 'android' ? theme.spacing.xxl + 10 : theme.spacing.lg,
+        paddingTop: Platform.OS === 'android' ? theme.spacing.xxl + 8 : theme.spacing.lg,
         paddingBottom: theme.spacing.xs,
     },
     headerContent: {
         flex: 1,
     },
     headerNumber: {
-        fontSize: 88,
+        fontSize: 80,
         fontWeight: '100',
         color: '#FFFFFF',
-        lineHeight: 88,
-        letterSpacing: -6,
+        lineHeight: 80,
+        letterSpacing: -5,
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
     },
     headerLabel: {
-        fontSize: theme.fontSize.sm,
+        fontSize: 13,
         color: 'rgba(255, 255, 255, 0.35)',
-        marginTop: theme.spacing.xs,
-        letterSpacing: 0.6,
+        marginTop: 4,
+        letterSpacing: 0.5,
         textTransform: 'lowercase',
     },
     settingsButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         backgroundColor: 'rgba(255, 255, 255, 0.06)',
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: theme.spacing.md,
+        marginTop: theme.spacing.sm,
     },
     settingsIcon: {
         flexDirection: 'column',
@@ -307,8 +272,8 @@ const styles = StyleSheet.create({
     },
     gridContainer: {
         flex: 1,
-        marginTop: theme.spacing.md,
-        marginBottom: 90,
+        marginTop: theme.spacing.lg,
+        marginBottom: 85,
     },
     modalOverlay: {
         flex: 1,
@@ -320,78 +285,73 @@ const styles = StyleSheet.create({
     },
     modalContent: {
         backgroundColor: '#0D0D0D',
-        borderTopLeftRadius: 32,
-        borderTopRightRadius: 32,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
         paddingBottom: theme.spacing.xxxl + 20,
-        maxHeight: '65%',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.05)',
         borderBottomWidth: 0,
     },
     modalHandle: {
-        width: 40,
+        width: 36,
         height: 4,
         borderRadius: 2,
         backgroundColor: 'rgba(255, 255, 255, 0.12)',
         alignSelf: 'center',
         marginTop: theme.spacing.md,
-        marginBottom: theme.spacing.xl,
-    },
-    modalHeader: {
-        paddingHorizontal: theme.spacing.xl,
         marginBottom: theme.spacing.lg,
     },
-    modalTitle: {
-        fontSize: 26,
-        color: '#FFFFFF',
-        fontWeight: '400',
-        letterSpacing: -0.8,
-    },
-    settingSection: {
+    birthYearSection: {
         paddingHorizontal: theme.spacing.xl,
-        paddingVertical: theme.spacing.xl,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+        paddingVertical: theme.spacing.lg,
     },
-    sectionLabel: {
-        fontSize: theme.fontSize.lg,
-        color: '#FFFFFF',
-        fontWeight: '500',
-        marginBottom: 4,
+    birthYearLabel: {
+        fontSize: 13,
+        color: 'rgba(255, 255, 255, 0.4)',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: theme.spacing.md,
     },
-    sectionDescription: {
-        fontSize: theme.fontSize.sm,
-        color: 'rgba(255, 255, 255, 0.35)',
-        marginBottom: theme.spacing.lg,
-    },
-    birthYearContainer: {
+    birthYearRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: theme.spacing.md,
     },
     birthYearInput: {
         flex: 1,
-        fontSize: 42,
+        fontSize: 48,
         color: '#FFFFFF',
         backgroundColor: 'rgba(255, 255, 255, 0.04)',
-        borderRadius: 18,
+        borderRadius: 16,
         paddingVertical: theme.spacing.lg,
         paddingHorizontal: theme.spacing.xl,
         textAlign: 'center',
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.06)',
     },
     saveButton: {
         backgroundColor: '#FFFFFF',
-        paddingVertical: 20,
-        paddingHorizontal: theme.spacing.xxl,
+        paddingVertical: 22,
+        paddingHorizontal: 32,
         borderRadius: 50,
     },
     saveButtonText: {
         color: '#000000',
-        fontSize: theme.fontSize.md,
+        fontSize: 16,
         fontWeight: '600',
+    },
+    colorSection: {
+        paddingHorizontal: theme.spacing.xl,
+        paddingTop: theme.spacing.lg,
+        paddingBottom: theme.spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255, 255, 255, 0.04)',
+    },
+    sectionLabel: {
+        fontSize: 13,
+        color: 'rgba(255, 255, 255, 0.4)',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: theme.spacing.md,
     },
 });
 

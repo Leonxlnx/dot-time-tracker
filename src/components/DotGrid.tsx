@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useRef } from 'react';
-import { View, StyleSheet, Dimensions, ScrollView, Animated, Easing } from 'react-native';
+import { View, StyleSheet, Dimensions, Animated, Easing } from 'react-native';
 import { theme, DotColorPreset } from '../theme';
 import { TimeData, ViewType, generateDotCells } from '../utils/timeUtils';
 import Dot from './Dot';
@@ -13,76 +13,66 @@ interface DotGridProps {
 const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'default' }) => {
     const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const scaleAnim = useRef(new Animated.Value(0.95)).current;
+    const scaleAnim = useRef(new Animated.Value(0.96)).current;
 
     const cells = useMemo(() => generateDotCells(timeData, viewType), [timeData, viewType]);
 
     useEffect(() => {
         fadeAnim.setValue(0);
-        scaleAnim.setValue(0.96);
+        scaleAnim.setValue(0.97);
 
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
-                duration: 400,
+                duration: 300,
                 easing: Easing.out(Easing.cubic),
                 useNativeDriver: true,
             }),
             Animated.spring(scaleAnim, {
                 toValue: 1,
-                damping: 16,
-                stiffness: 130,
+                damping: 18,
+                stiffness: 150,
                 useNativeDriver: true,
             }),
         ]).start();
     }, [viewType]);
 
-    // Optimized responsive calculations
+    // Smart layout using available width AND height
     const getResponsiveConfig = () => {
         const horizontalPadding = theme.spacing.lg * 2;
         const availableWidth = SCREEN_WIDTH - horizontalPadding;
-        const availableHeight = SCREEN_HEIGHT * 0.48; // More vertical space
+        const availableHeight = SCREEN_HEIGHT * 0.45;
+        const gapRatio = 0.2;
 
-        switch (viewType) {
-            case 'month': {
-                const cols = 7;
-                const rows = Math.ceil(timeData.totalDays / cols);
-                const gapRatio = 0.18;
+        const total = timeData.totalDays;
 
-                const maxByWidth = availableWidth / (cols * (1 + gapRatio));
-                const maxByHeight = availableHeight / (rows * (1 + gapRatio));
-                const dotSize = Math.min(maxByWidth, maxByHeight, 44);
-                const gap = dotSize * gapRatio;
+        // Find optimal columns by trying different values
+        let bestConfig = { columns: 7, dotSize: 10, gap: 2 };
+        let bestDotSize = 0;
 
-                return { columns: cols, dotSize, gap };
+        // Test column range based on view type
+        const minCols = viewType === 'year' ? 15 : viewType === 'life' ? 8 : 5;
+        const maxCols = viewType === 'year' ? 30 : viewType === 'life' ? 15 : 10;
+
+        for (let cols = minCols; cols <= maxCols; cols++) {
+            const rows = Math.ceil(total / cols);
+
+            // Calculate dot size for this column count
+            const dotByWidth = availableWidth / (cols + (cols - 1) * gapRatio);
+            const dotByHeight = availableHeight / (rows + (rows - 1) * gapRatio);
+            const dotSize = Math.min(dotByWidth, dotByHeight);
+
+            if (dotSize > bestDotSize) {
+                bestDotSize = dotSize;
+                bestConfig = {
+                    columns: cols,
+                    dotSize,
+                    gap: dotSize * gapRatio
+                };
             }
-            case 'year': {
-                const cols = 20;
-                const rows = Math.ceil(timeData.totalDays / cols);
-                const gapRatio = 0.25;
-
-                const maxByWidth = availableWidth / (cols * (1 + gapRatio));
-                const maxByHeight = availableHeight / (rows * (1 + gapRatio));
-                const dotSize = Math.min(maxByWidth, maxByHeight, 11);
-                const gap = dotSize * gapRatio;
-
-                return { columns: cols, dotSize: Math.max(dotSize, 5), gap };
-            }
-            case 'life': {
-                const cols = 10;
-                const rows = Math.ceil(timeData.totalDays / cols);
-                const gapRatio = 0.22;
-
-                const maxByWidth = availableWidth / (cols * (1 + gapRatio));
-                const maxByHeight = availableHeight / (rows * (1 + gapRatio));
-                const dotSize = Math.min(maxByWidth, maxByHeight, 30);
-                const gap = dotSize * gapRatio;
-
-                return { columns: cols, dotSize, gap };
-            }
-            default:
-                return { columns: 7, dotSize: 20, gap: 4 };
         }
+
+        return bestConfig;
     };
 
     const { columns, dotSize, gap } = getResponsiveConfig();
@@ -91,24 +81,6 @@ const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'de
     for (let i = 0; i < cells.length; i += columns) {
         rows.push(cells.slice(i, i + columns));
     }
-
-    const gridContent = (
-        <View style={styles.grid}>
-            {rows.map((rowCells, rowIndex) => (
-                <View key={rowIndex} style={styles.row}>
-                    {rowCells.map((cell) => (
-                        <Dot
-                            key={cell.index}
-                            cell={cell}
-                            size={dotSize}
-                            gap={gap}
-                            colorPreset={colorPreset}
-                        />
-                    ))}
-                </View>
-            ))}
-        </View>
-    );
 
     return (
         <Animated.View
@@ -121,7 +93,21 @@ const DotGrid: React.FC<DotGridProps> = ({ timeData, viewType, colorPreset = 'de
             ]}
         >
             <View style={styles.centerWrapper}>
-                {gridContent}
+                <View style={styles.grid}>
+                    {rows.map((rowCells, rowIndex) => (
+                        <View key={rowIndex} style={styles.row}>
+                            {rowCells.map((cell) => (
+                                <Dot
+                                    key={cell.index}
+                                    cell={cell}
+                                    size={dotSize}
+                                    gap={gap}
+                                    colorPreset={colorPreset}
+                                />
+                            ))}
+                        </View>
+                    ))}
+                </View>
             </View>
         </Animated.View>
     );
@@ -137,7 +123,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
         alignItems: 'center',
         paddingHorizontal: theme.spacing.lg,
-        paddingTop: theme.spacing.xl, // More space from top
+        paddingTop: theme.spacing.md,
     },
     grid: {
         alignItems: 'center',

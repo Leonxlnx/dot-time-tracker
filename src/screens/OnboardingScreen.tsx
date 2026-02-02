@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Animated, Easing, Dimensions, TouchableOpacity 
 import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../theme';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface OnboardingScreenProps {
     onComplete: () => void;
@@ -11,36 +11,28 @@ interface OnboardingScreenProps {
 
 const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(30)).current;
-    const dotScale = useRef(new Animated.Value(0)).current;
+    const dotScale = useRef(new Animated.Value(0.5)).current;
     const buttonOpacity = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        // Staggered entrance animation
-        Animated.sequence([
-            Animated.parallel([
-                Animated.timing(fadeAnim, {
-                    toValue: 1,
-                    duration: 800,
-                    easing: Easing.out(Easing.cubic),
-                    useNativeDriver: true,
-                }),
-                Animated.timing(slideAnim, {
-                    toValue: 0,
-                    duration: 800,
-                    easing: Easing.out(Easing.cubic),
-                    useNativeDriver: true,
-                }),
-            ]),
+        // Fast, snappy entrance
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 300,
+                easing: Easing.out(Easing.cubic),
+                useNativeDriver: true,
+            }),
             Animated.spring(dotScale, {
                 toValue: 1,
-                damping: 8,
-                stiffness: 100,
+                damping: 12,
+                stiffness: 200,
                 useNativeDriver: true,
             }),
             Animated.timing(buttonOpacity, {
                 toValue: 1,
                 duration: 400,
+                delay: 200,
                 useNativeDriver: true,
             }),
         ]).start();
@@ -48,28 +40,9 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
 
     return (
         <View style={styles.container}>
-            {/* Background gradient */}
-            <LinearGradient
-                colors={['#000000', '#0A0A0A', '#000000']}
-                style={StyleSheet.absoluteFill}
-            />
-
-            <Animated.View
-                style={[
-                    styles.content,
-                    {
-                        opacity: fadeAnim,
-                        transform: [{ translateY: slideAnim }],
-                    }
-                ]}
-            >
-                {/* Animated Dot */}
-                <Animated.View
-                    style={[
-                        styles.heroContainer,
-                        { transform: [{ scale: dotScale }] }
-                    ]}
-                >
+            <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+                {/* Simple Dot */}
+                <Animated.View style={[styles.heroContainer, { transform: [{ scale: dotScale }] }]}>
                     <LinearGradient
                         colors={['#FFE082', '#D4AF37', '#A67C00']}
                         start={{ x: 0.3, y: 0 }}
@@ -78,46 +51,30 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
                     >
                         <View style={styles.dotHighlight} />
                     </LinearGradient>
-                    <View style={styles.dotGlow} />
                 </Animated.View>
 
                 {/* Title */}
                 <Text style={styles.title}>DotTime</Text>
-                <Text style={styles.subtitle}>Visualize your time</Text>
+                <Text style={styles.subtitle}>visualize your time</Text>
 
-                {/* Description */}
-                <View style={styles.descriptionContainer}>
-                    <Text style={styles.description}>
-                        Every dot represents a unit of time.{'\n'}
-                        Filled dots are time passed.{'\n'}
-                        The golden dot is today.
-                    </Text>
-                </View>
-
-                {/* Features */}
-                <View style={styles.features}>
-                    <View style={styles.featureRow}>
-                        <View style={styles.featureDot} />
-                        <Text style={styles.featureText}>Month · Year · Life views</Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                        <View style={styles.featureDot} />
-                        <Text style={styles.featureText}>Home screen widgets</Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                        <View style={styles.featureDot} />
-                        <Text style={styles.featureText}>Multiple color themes</Text>
-                    </View>
+                {/* Simple dots grid preview */}
+                <View style={styles.dotsPreview}>
+                    {[...Array(21)].map((_, i) => (
+                        <View
+                            key={i}
+                            style={[
+                                styles.previewDot,
+                                i < 12 && styles.previewDotFilled,
+                                i === 12 && styles.previewDotToday,
+                            ]}
+                        />
+                    ))}
                 </View>
             </Animated.View>
 
-            {/* Get Started Button */}
+            {/* Get Started */}
             <Animated.View style={[styles.buttonContainer, { opacity: buttonOpacity }]}>
-                <TouchableOpacity
-                    style={styles.button}
-                    activeOpacity={0.9}
-                    onPress={onComplete}
-                >
+                <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={onComplete}>
                     <Text style={styles.buttonText}>Get Started</Text>
                 </TouchableOpacity>
             </Animated.View>
@@ -137,78 +94,54 @@ const styles = StyleSheet.create({
         paddingHorizontal: theme.spacing.xl,
     },
     heroContainer: {
-        width: 100,
-        height: 100,
         marginBottom: theme.spacing.xxl,
-        alignItems: 'center',
-        justifyContent: 'center',
     },
     heroDot: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        position: 'relative',
+        width: 64,
+        height: 64,
+        borderRadius: 32,
         overflow: 'hidden',
     },
     dotHighlight: {
         position: 'absolute',
-        top: 12,
-        left: 16,
-        width: 24,
-        height: 12,
-        borderRadius: 6,
+        top: 10,
+        left: 14,
+        width: 18,
+        height: 10,
+        borderRadius: 5,
         backgroundColor: 'rgba(255,255,255,0.5)',
     },
-    dotGlow: {
-        position: 'absolute',
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        backgroundColor: '#D4AF37',
-        opacity: 0.2,
-        zIndex: -1,
-    },
     title: {
-        fontSize: 48,
+        fontSize: 42,
         fontWeight: '200',
         color: '#FFFFFF',
-        letterSpacing: -2,
-        marginBottom: theme.spacing.xs,
+        letterSpacing: -1.5,
+        marginBottom: 4,
     },
     subtitle: {
-        fontSize: theme.fontSize.md,
-        color: 'rgba(255,255,255,0.4)',
-        letterSpacing: 0.5,
-        marginBottom: theme.spacing.xxl,
-    },
-    descriptionContainer: {
-        marginBottom: theme.spacing.xxl,
-    },
-    description: {
-        fontSize: theme.fontSize.md,
-        color: 'rgba(255,255,255,0.6)',
-        textAlign: 'center',
-        lineHeight: 26,
-    },
-    features: {
-        alignItems: 'flex-start',
-        gap: theme.spacing.md,
-    },
-    featureRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: theme.spacing.md,
-    },
-    featureDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: 'rgba(255,255,255,0.15)',
-    },
-    featureText: {
-        fontSize: theme.fontSize.sm,
-        color: 'rgba(255,255,255,0.5)',
+        fontSize: 15,
+        color: 'rgba(255,255,255,0.35)',
         letterSpacing: 0.3,
+        marginBottom: theme.spacing.xxl,
+    },
+    dotsPreview: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        width: 140,
+        justifyContent: 'center',
+        gap: 6,
+    },
+    previewDot: {
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    previewDotFilled: {
+        backgroundColor: 'rgba(255,255,255,0.5)',
+    },
+    previewDotToday: {
+        backgroundColor: '#D4AF37',
     },
     buttonContainer: {
         paddingHorizontal: theme.spacing.xl,
@@ -216,15 +149,14 @@ const styles = StyleSheet.create({
     },
     button: {
         backgroundColor: '#FFFFFF',
-        paddingVertical: 18,
+        paddingVertical: 16,
         borderRadius: 50,
         alignItems: 'center',
     },
     buttonText: {
         color: '#000000',
-        fontSize: theme.fontSize.md,
+        fontSize: 16,
         fontWeight: '600',
-        letterSpacing: 0.3,
     },
 });
 
