@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     StyleSheet,
@@ -11,151 +11,225 @@ import {
     LayoutAnimation,
     Platform,
     UIManager,
+    ScrollView,
+    Animated,
+    Easing,
+    Dimensions,
 } from 'react-native';
-import { theme } from '../theme';
+import { theme, DotColorPreset } from '../theme';
 import { ViewType, getTimeData } from '../utils/timeUtils';
-import { getBirthYear, saveBirthYear, getViewType, saveViewType } from '../utils/storage';
+import { getBirthYear, saveBirthYear, getViewType, saveViewType, getColorPreset, saveColorPreset } from '../utils/storage';
 import DotGrid from '../components/DotGrid';
 import ViewSelector from '../components/ViewSelector';
-import * as DefaultPreference from 'react-native-default-preference';
+import ColorPicker from '../components/ColorPicker';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 const HomeScreen: React.FC = () => {
     const [viewType, setViewType] = useState<ViewType>('month');
     const [birthYear, setBirthYear] = useState<number>(1990);
+    const [colorPreset, setColorPreset] = useState<DotColorPreset>('default');
     const [loading, setLoading] = useState(true);
-    const [showBirthYearModal, setShowBirthYearModal] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
     const [tempBirthYear, setTempBirthYear] = useState('');
 
-    // ---------- NATIVE WIDGET UPDATE LOGIC ----------
-    const updateWidgetData = useCallback(async (currentView: ViewType, year: number) => {
-        try {
-            const data = getTimeData(currentView, year);
-
-            await DefaultPreference.setName('group.com.dottime.widget'); // Shared Group
-            await DefaultPreference.set('widget_remaining', data.remainingDays.toString());
-            await DefaultPreference.set('widget_total', data.totalDays.toString());
-            await DefaultPreference.set('widget_label', data.label);
-            await DefaultPreference.set('widget_view', currentView);
-
-            // Force update intent could be sent here if native module existed
-        } catch (e) {
-            // Silently fail if native module not linked yet
-        }
-    }, []);
-    // ------------------------------------------------
+    // Animations
+    const headerOpacity = useRef(new Animated.Value(0)).current;
+    const headerTranslate = useRef(new Animated.Value(-20)).current;
+    const numberScale = useRef(new Animated.Value(0.8)).current;
 
     useEffect(() => {
         const loadPreferences = async () => {
             try {
-                const savedView = await getViewType();
-                const savedBirthYear = await getBirthYear();
+                const [savedView, savedBirthYear, savedColor] = await Promise.all([
+                    getViewType(),
+                    getBirthYear(),
+                    getColorPreset(),
+                ]);
 
-                const finalView = (savedView as ViewType) || 'month';
-                const finalYear = savedBirthYear || 1990;
-
-                setViewType(finalView);
+                if (savedView) setViewType(savedView as ViewType);
                 if (savedBirthYear) setBirthYear(savedBirthYear);
-
-                updateWidgetData(finalView, finalYear);
+                if (savedColor) setColorPreset(savedColor);
             } catch (error) {
                 console.error('Error loading preferences:', error);
             } finally {
                 setLoading(false);
+
+                // Entrance animations
+                Animated.parallel([
+                    Animated.timing(headerOpacity, {
+                        toValue: 1,
+                        duration: 600,
+                        easing: Easing.out(Easing.cubic),
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(headerTranslate, {
+                        toValue: 0,
+                        duration: 600,
+                        easing: Easing.out(Easing.cubic),
+                        useNativeDriver: true,
+                    }),
+                    Animated.spring(numberScale, {
+                        toValue: 1,
+                        damping: 12,
+                        stiffness: 100,
+                        delay: 100,
+                        useNativeDriver: true,
+                    }),
+                ]).start();
             }
         };
 
         loadPreferences();
-    }, [updateWidgetData]);
+    }, []);
 
-    const handleViewChange = useCallback(
-        async (view: ViewType) => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            if (view === 'life') {
-                const savedBirthYear = await getBirthYear();
-                if (!savedBirthYear) {
-                    setShowBirthYearModal(true);
-                }
+    // Animate number change
+    useEffect(() => {
+        numberScale.setValue(0.9);
+        Animated.spring(numberScale, {
+            toValue: 1,
+            damping: 8,
+            stiffness: 200,
+            useNativeDriver: true,
+        }).start();
+    }, [viewType]);
+
+    const handleViewChange = useCallback(async (view: ViewType) => {
+        LayoutAnimation.configureNext({
+            duration: 300,
+            update: { type: 'easeInEaseOut' },
+        });
+
+        if (view === 'life') {
+            const savedBirthYear = await getBirthYear();
+            if (!savedBirthYear) {
+                setTempBirthYear('');
+                setShowSettings(true);
             }
-            setViewType(view);
-            await saveViewType(view);
-            updateWidgetData(view, birthYear);
-        },
-        [birthYear, updateWidgetData]
-    );
+        }
+        setViewType(view);
+        await saveViewType(view);
+    }, []);
+
+    const handleColorChange = async (preset: DotColorPreset) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setColorPreset(preset);
+        await saveColorPreset(preset);
+    };
 
     const handleSaveBirthYear = async () => {
         const year = parseInt(tempBirthYear, 10);
         if (year >= 1900 && year <= new Date().getFullYear()) {
             setBirthYear(year);
             await saveBirthYear(year);
-            setShowBirthYearModal(false);
-            updateWidgetData(viewType, year);
         }
     };
 
     const timeData = getTimeData(viewType, birthYear);
 
-    if (loading) return <View style={styles.container} />;
+    if (loading) {
+        return <View style={styles.container} />;
+    }
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor={theme.colors.background} />
+            <StatusBar barStyle="light-content" backgroundColor="#000000" translucent />
 
-            <View style={styles.header}>
-                <View>
-                    <Text style={styles.headerNumber}>{timeData.remainingDays}</Text>
+            {/* Premium Header */}
+            <Animated.View
+                style={[
+                    styles.header,
+                    {
+                        opacity: headerOpacity,
+                        transform: [{ translateY: headerTranslate }],
+                    }
+                ]}
+            >
+                <View style={styles.headerContent}>
+                    <Animated.Text
+                        style={[
+                            styles.headerNumber,
+                            { transform: [{ scale: numberScale }] }
+                        ]}
+                    >
+                        {timeData.remainingDays}
+                    </Animated.Text>
                     <Text style={styles.headerLabel}>{timeData.label}</Text>
                 </View>
+
                 <TouchableOpacity
                     activeOpacity={0.7}
                     style={styles.settingsButton}
                     onPress={() => {
                         setTempBirthYear(birthYear.toString());
-                        setShowBirthYearModal(true);
+                        setShowSettings(true);
                     }}
                 >
-                    <Text style={styles.settingsIcon}>⋮</Text>
+                    <View style={styles.settingsIcon}>
+                        <View style={styles.settingsDot} />
+                        <View style={styles.settingsDot} />
+                        <View style={styles.settingsDot} />
+                    </View>
                 </TouchableOpacity>
-            </View>
+            </Animated.View>
 
-            <DotGrid timeData={timeData} viewType={viewType} />
+            {/* Dots Grid */}
+            <DotGrid timeData={timeData} viewType={viewType} colorPreset={colorPreset} />
 
+            {/* View Selector */}
             <ViewSelector currentView={viewType} onViewChange={handleViewChange} />
 
+            {/* Settings Modal */}
             <Modal
-                visible={showBirthYearModal}
-                animationType="fade"
+                visible={showSettings}
+                animationType="slide"
                 transparent
-                onRequestClose={() => setShowBirthYearModal(false)}
+                statusBarTranslucent
+                onRequestClose={() => setShowSettings(false)}
             >
                 <View style={styles.modalOverlay}>
+                    <TouchableOpacity
+                        style={styles.modalDismiss}
+                        activeOpacity={1}
+                        onPress={() => setShowSettings(false)}
+                    />
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Enter Birth Year</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={tempBirthYear}
-                            onChangeText={setTempBirthYear}
-                            keyboardType="numeric"
-                            maxLength={4}
-                            placeholder="1990"
-                            placeholderTextColor={theme.colors.textSecondary}
-                            autoFocus
-                        />
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity
-                                style={styles.modalButton}
-                                onPress={() => setShowBirthYearModal(false)}
-                            >
-                                <Text style={styles.buttonText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleSaveBirthYear}>
-                                <Text style={[styles.buttonText, styles.saveButtonText]}>Confirm</Text>
-                            </TouchableOpacity>
+                        <View style={styles.modalHandle} />
+
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Settings</Text>
                         </View>
+
+                        <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+                            {/* Birth Year */}
+                            <View style={styles.settingSection}>
+                                <Text style={styles.sectionLabel}>Birth Year</Text>
+                                <Text style={styles.sectionDescription}>Used for life view calculations</Text>
+                                <View style={styles.birthYearRow}>
+                                    <TextInput
+                                        style={styles.birthYearInput}
+                                        value={tempBirthYear}
+                                        onChangeText={setTempBirthYear}
+                                        keyboardType="numeric"
+                                        maxLength={4}
+                                        placeholder="1990"
+                                        placeholderTextColor={theme.colors.textTertiary}
+                                    />
+                                    <TouchableOpacity style={styles.saveButton} onPress={handleSaveBirthYear}>
+                                        <Text style={styles.saveButtonText}>Save</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            {/* Color Picker */}
+                            <View style={styles.settingSection}>
+                                <ColorPicker currentColor={colorPreset} onColorChange={handleColorChange} />
+                            </View>
+                        </ScrollView>
                     </View>
                 </View>
             </Modal>
@@ -166,96 +240,128 @@ const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.background,
+        backgroundColor: '#000000',
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         paddingHorizontal: theme.spacing.xl,
-        paddingTop: theme.spacing.xxl, // More top padding
-        paddingBottom: theme.spacing.xl,
+        paddingTop: Platform.OS === 'android' ? theme.spacing.xxxl : theme.spacing.xl,
+        paddingBottom: theme.spacing.md,
+    },
+    headerContent: {
+        flex: 1,
     },
     headerNumber: {
-        fontSize: theme.fontSize.hero,
-        fontWeight: '200',
-        color: theme.colors.text,
-        lineHeight: theme.fontSize.hero,
-        letterSpacing: -2,
-        fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-light',
+        fontSize: 88,
+        fontWeight: '100',
+        color: '#FFFFFF',
+        lineHeight: 88,
+        letterSpacing: -6,
+        fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
     },
     headerLabel: {
-        fontSize: theme.fontSize.lg,
-        color: theme.colors.textSecondary,
+        fontSize: theme.fontSize.md,
+        color: 'rgba(255, 255, 255, 0.4)',
         marginTop: theme.spacing.xs,
-        textTransform: 'lowercase',
         letterSpacing: 0.5,
     },
     settingsButton: {
-        padding: theme.spacing.sm,
-        backgroundColor: theme.colors.surface,
-        borderRadius: theme.borderRadius.full,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: theme.spacing.md,
     },
     settingsIcon: {
-        fontSize: 20,
-        color: theme.colors.textSecondary,
-        fontWeight: 'bold',
+        flexDirection: 'column',
+        gap: 4,
+    },
+    settingsDot: {
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: 'rgba(255, 255, 255, 0.5)',
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.9)',
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        justifyContent: 'flex-end',
+    },
+    modalDismiss: {
+        flex: 1,
     },
     modalContent: {
-        width: 300,
-        backgroundColor: theme.colors.surface,
-        borderRadius: theme.borderRadius.lg,
-        padding: theme.spacing.xl,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: theme.colors.surfaceGlass,
+        backgroundColor: '#0A0A0A',
+        borderTopLeftRadius: theme.borderRadius.xl,
+        borderTopRightRadius: theme.borderRadius.xl,
+        paddingBottom: theme.spacing.xxxl,
+        maxHeight: '75%',
+    },
+    modalHandle: {
+        width: 36,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        alignSelf: 'center',
+        marginTop: theme.spacing.md,
+        marginBottom: theme.spacing.lg,
+    },
+    modalHeader: {
+        paddingHorizontal: theme.spacing.xl,
+        marginBottom: theme.spacing.md,
     },
     modalTitle: {
-        fontSize: theme.fontSize.lg,
-        color: theme.colors.text,
-        marginBottom: theme.spacing.lg,
-        fontWeight: '300',
+        fontSize: theme.fontSize.xl,
+        color: '#FFFFFF',
+        fontWeight: '600',
+        letterSpacing: -0.5,
     },
-    input: {
-        fontSize: theme.fontSize.xxl,
-        color: theme.colors.text,
+    settingSection: {
+        paddingHorizontal: theme.spacing.xl,
+        paddingVertical: theme.spacing.lg,
         borderBottomWidth: 1,
-        borderBottomColor: theme.colors.textTertiary,
-        width: '100%',
+        borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    },
+    sectionLabel: {
+        fontSize: theme.fontSize.md,
+        color: '#FFFFFF',
+        fontWeight: '500',
+        marginBottom: theme.spacing.xs,
+    },
+    sectionDescription: {
+        fontSize: theme.fontSize.sm,
+        color: 'rgba(255, 255, 255, 0.4)',
+        marginBottom: theme.spacing.md,
+    },
+    birthYearRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.md,
+    },
+    birthYearInput: {
+        flex: 1,
+        fontSize: theme.fontSize.xxl,
+        color: '#FFFFFF',
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+        borderRadius: theme.borderRadius.lg,
+        paddingVertical: theme.spacing.md,
+        paddingHorizontal: theme.spacing.lg,
         textAlign: 'center',
-        marginBottom: theme.spacing.xl,
-        paddingVertical: theme.spacing.sm,
         fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-thin',
     },
-    modalButtons: {
-        flexDirection: 'row',
-        gap: theme.spacing.md,
-        width: '100%',
-        justifyContent: 'space-between',
-    },
-    modalButton: {
-        flex: 1,
-        paddingVertical: theme.spacing.md,
-        borderRadius: theme.borderRadius.full,
-        backgroundColor: theme.colors.surfaceGlass,
-        alignItems: 'center',
-    },
     saveButton: {
-        backgroundColor: theme.colors.text, // White button
-    },
-    buttonText: {
-        fontSize: theme.fontSize.md,
-        color: theme.colors.textSecondary,
-        fontWeight: '500',
+        backgroundColor: '#FFFFFF',
+        paddingVertical: theme.spacing.md,
+        paddingHorizontal: theme.spacing.xl,
+        borderRadius: theme.borderRadius.full,
     },
     saveButtonText: {
-        color: theme.colors.background, // Black text
+        color: '#000000',
+        fontSize: theme.fontSize.md,
         fontWeight: '600',
     },
 });
